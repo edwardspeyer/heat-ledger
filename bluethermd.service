@@ -8,7 +8,7 @@ User=root
 Group=root
 ExecStart=/opt/bluetherm/bluethermd --sqlite /var/lib/bluethermd/sqlite --quiet
 KillMode=process
-Restart=on-failure
+Restart=always
 TimeoutSec=300
 
 [Install]
