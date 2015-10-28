@@ -1,0 +1,55 @@
+#!/usr/bin/env ruby
+
+Signal.trap("INT") do
+  puts
+  exit
+end
+
+require 'sqlite3'
+
+@conn = SQLite3::Database.new("/var/lib/bluethermd/sqlite")
+
+def t(n)
+  rows = @conn.execute "
+    SELECT epoch, mC
+    FROM sensor_#{n}
+    ORDER BY epoch DESC LIMIT 1
+  "
+  return rows[0]
+end
+
+STDOUT.sync = true
+
+loop do
+  now = Time.now
+
+  begin
+    epoch_1, milli_c_1 = *t(1)
+    epoch_2, milli_c_2 = *t(2)
+  rescue SQLite3::BusyException
+    next
+  end
+
+  temperature_1 = milli_c_1 / 1000.0
+  temperature_2 = milli_c_2 / 1000.0
+
+  ago_string_2 = '(%3ss ago)' % (now.to_i - epoch_2)
+  ago_string_1 =
+    if epoch_1 == epoch_2
+      ' ' * ago_string_2.length
+    else
+      '(%3ss ago)' % (now.to_i - epoch_1)
+    end
+  
+  clock = now.strftime('%H:%M:%S')
+
+  print "\r%s: %5.1f\u00B0C %s  %5.1f\u00B0C %s" % [
+    clock,
+    temperature_1,
+    ago_string_1,
+    temperature_2,
+    ago_string_2
+  ]
+
+  sleep 1
+end
