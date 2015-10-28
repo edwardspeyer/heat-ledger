@@ -1,0 +1,22 @@
+#!/bin/bash
+
+if [ `whoami` != 'root' ]
+then
+  echo >&2 "install: must be run as root"
+  exit 2
+fi
+
+dir=$(dirname "$0")
+
+if lsb_release -a 2>/dev/null | egrep -q '(Debian|Ubuntu)'
+then
+  set -ex
+  install --mode 0755 "$dir/bluetherm.rb" /opt/bluetherm/bluethermd
+  cp "$dir/bluethermd.service" /etc/systemd/system/bluethermd.service
+  systemctl daemon-reload
+  systemctl restart bluethermd
+  systemctl status bluethermd
+else
+  echo >&2 "install: unknown OS, unable to install BlueTherm daemon!"
+  exit 3
+fi
