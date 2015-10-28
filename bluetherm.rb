@@ -1,3 +1,5 @@
+#!/usr/bin/ruby
+
 #
 # Read temperatures from an ETI / Thermoworks BlueTherm Duo.
 #
@@ -423,7 +425,7 @@ module BlueTherm
     def initialize(device_path, options={})
       @device_path = device_path
       @poll_interval = options[:poll_interval] || 10
-      @log = options[:log] || STDERR
+      @log = if options.key?(:log) then options[:log] else STDERR end
       @threads = []
       reopen!
     end
@@ -577,6 +579,8 @@ end
 
 
 if $0 == __FILE__
+  $0 = 'bluethermd'
+
   require 'optparse'
   require 'pathname'
 
@@ -655,6 +659,9 @@ if $0 == __FILE__
         )
       end
     end
+  rescue SignalException => ex
+    STDERR.puts "received #{ex}"
+    exit
   rescue Exception => ex
     STDERR.puts ex
     STDERR.puts "sleeping before retrying, repeat ^C to quit..."
