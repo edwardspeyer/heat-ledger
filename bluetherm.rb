@@ -621,24 +621,39 @@ if $0 == __FILE__
     opts.abort("choose at least one of print-to-stdout or log-to-sqlite")
   end
 
-  # TODO rotate log messages through the sqlite db
+
+  #
+  # Helper for writing sensor values to an SQLite3 database.
+  #
+  class BlueTherm::Database # :nodoc:
+    def initialize(path)
+      @conn = SQLite3::Database.new(path.to_s)
+      @last = {}
+      @handles = {}
+    end
+
+    def log!(sensor_n, temperature)
+      return if temperature == @last[sensor_n]
+      @handles[sensor_n] ||= begin
+        table = "sensor_#{sensor_n}"
+        @conn.execute "
+          CREATE TABLE IF NOT EXISTS #{table} (
+            epoch INTEGER,
+            mC    INTEGER
+          )
+        "
+        @conn.prepare("INSERT INTO #{table} (epoch, mC) VALUES (?, ?)")
+      end
+      @handles[sensor_n].execute(Time.now.to_i, (temperature * 1000).to_i)
+      @last[sensor_n] = temperature
+    end
+  end
 
   if @sqlite_path
     unless @sqlite_path.exist?
       @sqlite_path.dirname.mkpath
     end
-
-    @sqlite_db = SQLite3::Database.new(@sqlite_path.to_s)
-    @sqlite_db.execute('
-      CREATE TABLE IF NOT EXISTS `basic_log` (
-        `epoch` INTEGER,
-        `t1`    INTEGER,
-        `t2`    INTEGER
-      )
-    ')
-    @sqlite_handle = @sqlite_db.prepare('
-      INSERT INTO `basic_log` (`epoch`, `t1`, `t2`) VALUES (?, ?, ?)
-    ')
+    @db = BlueTherm::Database.new(@sqlite_path)
   end
 
   options = {
@@ -652,12 +667,9 @@ if $0 == __FILE__
         puts "t1=#{t1} t2=#{t2}"
       end
 
-      if @sqlite_handle
-        @sqlite_handle.execute(
-          Time.now.to_i,
-          (t1 * 1000).to_i,
-          (t2 * 1000).to_i,
-        )
+      if @db
+        @db.log!(1, t1)
+        @db.log!(2, t2)
       end
     end
   rescue SignalException => ex
