@@ -58,7 +58,8 @@ puts response.get(BlueTherm::Field::FIRMWARE_VERSION)
 
 ## Daemon
 
-Included in this library is a simple daemon to read T1 and T2 and to `STDOUT`
-and/or an SQLite3 database.  Running `bluetooth.rb` directly will run the daemon.
-Also included is a systemd service file which will launch the daemon as a
-service when it is installed in `/opt/bluetherm/bluetherm.rb`.
+Included in this library is a simple daemon to read each sensor to `STDOUT`
+and optionally to an SQLite3 database.
+Running `bluetooth.rb` directly will run the daemon.
+It can also be installed as a systemd service on Debian and Ubuntu.
+The `install` script automatically installs the daemon and `.service` file.
