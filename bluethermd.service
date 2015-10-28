@@ -13,4 +13,4 @@ TimeoutSec=300
 
 [Install]
 WantedBy=multi-user.target
-Alias=exdiag.service
+Alias=bluethermd.service
