@@ -10,13 +10,17 @@ module BlueTherm
   # fields.
   #
   def self.poll(device_path, options={})
-    connection = BlueTherm::Connection.new(device_path, options)
-    fields = [
-      BlueTherm::Field::SENSOR_1_TEMPERATURE,
-      BlueTherm::Field::SENSOR_2_TEMPERATURE,
-    ]
-    connection.poll(*fields) do |t1, t2|
-      yield t1, t2
+    begin
+      connection = BlueTherm::Connection.new(device_path, options)
+      fields = [
+        BlueTherm::Field::SENSOR_1_TEMPERATURE,
+        BlueTherm::Field::SENSOR_2_TEMPERATURE,
+      ]
+      connection.poll(*fields) do |t1, t2|
+        yield t1, t2
+      end
+    ensure
+      connection.close
     end
   end
 
@@ -420,7 +424,20 @@ module BlueTherm
       @device_path = device_path
       @poll_interval = options[:poll_interval] || 10
       @log = options[:log] || STDERR
+      @threads = []
       reopen!
+    end
+
+    def close
+      for thread in @threads
+        log "killing thread #{thread.object_id}"
+        thread.kill
+      end
+      if @io
+        log "closing device #{@device_path}..."
+        @io.close
+        log "io closed"
+      end
     end
 
     #
@@ -516,6 +533,9 @@ module BlueTherm
           end
         end
       end
+
+      @threads << receiver
+      @threads << sender
 
       receiver.abort_on_exception = true
       sender.abort_on_exception = true
@@ -621,17 +641,24 @@ if $0 == __FILE__
     :update_interval => @update_interval,
   }
 
-  BlueTherm.poll(@device_path, options) do |t1, t2|
-    if @is_print
-      puts "t1=#{t1} t2=#{t2}"
-    end
+  begin
+    BlueTherm.poll(@device_path, options) do |t1, t2|
+      if @is_print
+        puts "t1=#{t1} t2=#{t2}"
+      end
 
-    if @sqlite_handle
-      @sqlite_handle.execute(
-        Time.now.to_i,
-        (t1 * 1000).to_i,
-        (t2 * 1000).to_i,
-      )
+      if @sqlite_handle
+        @sqlite_handle.execute(
+          Time.now.to_i,
+          (t1 * 1000).to_i,
+          (t2 * 1000).to_i,
+        )
+      end
     end
+  rescue Exception => ex
+    STDERR.puts ex
+    STDERR.puts "sleeping before retrying, repeat ^C to quit..."
+    sleep 10
+    retry
   end
 end
