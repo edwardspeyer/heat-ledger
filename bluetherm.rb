@@ -8,8 +8,9 @@
 module BlueTherm
 
   #
-  # Create a new Connection and poll it with +GET+ requests for the given
-  # fields.
+  # A nice easy way to connect and poll for sensor temperatures.
+  #
+  #   BlueTherm.poll("/dev/rfcomm0"){ |t1, t2| ... }
   #
   def self.poll(device_path, options={})
     begin
