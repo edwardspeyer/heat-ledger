@@ -126,6 +126,7 @@ fetchAndPlot <- function(
     for (t in done_temperatures) {
       done_times <- c(done_times, doneTime(meat_model, t))
     }
+    done_times <- done_times[done_times > 0]
   }
 
   ## BEGIN PLOT
@@ -162,12 +163,10 @@ fetchAndPlot <- function(
 
   # Draw on models
   if (!is.null(oven_model)) {
-    print(oven_model)
     abline(oven_model, lt=2, col=4)
   }
 
   if (!is.null(meat_model)) {
-    print(meat_model)
     abline(meat_model, lt=2, col=4)
 
     # Meat guidelines
