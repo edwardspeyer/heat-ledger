@@ -19,7 +19,7 @@ fetchSensorData <- function(time_now, con, sensor_number) {
   where <- paste(where, "AND epoch <=", epoch_max)
   where <- paste(where, "AND mC > -300000")
   sql <- paste("SELECT epoch, mC FROM", table, "WHERE", where)
-  
+
   res <- dbSendQuery(con, sql)
   data <- fetch(res, n=-1)
   dbClearResult(res)
@@ -107,6 +107,9 @@ fetchAndPlot <- function(
   s1 <- data$sensors[[1]]
   s2 <- data$sensors[[2]]
 
+  # TODO get better names for "time_now" and "cook_time"
+  cook_time_now <- as.integer(time_now) - data$start_epoch
+
   if (nrow(s1) == 0 && nrow(s2) == 0) {
     warningMessage(paste(
       "no data found in the 24 hours before",
@@ -126,6 +129,8 @@ fetchAndPlot <- function(
     for (t in done_temperatures) {
       done_times <- c(done_times, doneTime(meat_model, t))
     }
+    # TODO ignore done_times in the past
+    # TODO ignore done_times ridiculously far into the future (>12 hours?)
     done_times <- done_times[done_times > 0]
   }
 
