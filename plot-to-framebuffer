@@ -1,0 +1,49 @@
+#!/usr/bin/env python
+# vim: ft=python
+
+import pygame
+import subprocess
+import sys
+import tempfile
+import time
+
+def invert(img):
+    inv = pygame.Surface(img.get_rect().size, pygame.SRCALPHA)
+    inv.fill((255,255,255,255))
+    inv.blit(img, (0,0), None, pygame.BLEND_RGB_SUB)
+    return inv
+
+pygame.init()
+
+info = pygame.display.Info()
+w, h = info.current_w, info.current_h
+size = (w,h)
+
+screen = pygame.display.set_mode(size)
+pygame.mouse.set_visible(False)
+
+black = 0, 0, 0
+png_tempfile = tempfile.NamedTemporaryFile()
+png_path = png_tempfile.name
+
+command = [
+    "./plot-to-file",
+        "--width", str(w),
+        "--height", str(h),
+        "--output", png_path
+]
+
+while True:
+    command.extend(sys.argv[1:])
+
+    exit_status = subprocess.call(command)
+
+    if exit_status == 0:
+        plot = pygame.image.load(png_path)
+        plot = invert(plot)
+        plotrect = plot.get_rect()
+        screen.fill(black)
+        screen.blit(plot, plotrect)
+        pygame.display.flip()
+
+    time.sleep(100)
