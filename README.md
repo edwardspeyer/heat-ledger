@@ -1,12 +1,13 @@
-# Ruby for the BlueTherm Duo
+# BlueTherm Duo Toolkit
 
-This project provides a library for communicating with an ETI Thermoworks
+This project provides a tools for communicating with an ETI Thermoworks
 [BlueTherm  Duo](http://thermometer.co.uk/bluetooth-temperature-probes/1002-bluetooth-thermometer-bluetherm-duo.html)
 using a pre-established Bluetooth serial connection.
 
-The code is based on Dan Elbert's
+The Ruby code is based on Dan Elbert's
 [pi-b-q](https://github.com/DanElbert/pi-b-q/tree/master)
-Ruby on Rails project.  I have simplified his code into a rails-independent library provided in a single file.
+Ruby on Rails project.  I have simplified his code into a rails-independent
+library provided in a single file.
 
 The BlueTherm module provides for three use cases:
 
