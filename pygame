@@ -1,0 +1,81 @@
+#!/usr/bin/env python3
+
+#
+# OS X:
+#
+#   brew install python3 hg sdl sdl_image sdl_mixer sdl_ttf portmidi
+#   pip3 install hg+http://bitbucket.org/pygame/pygame
+#   pip3 install pillow
+#   brew install cairo
+#   pip3 install cairocffi
+#
+from PIL import Image
+import cairocffi as cairo
+import pygame
+import time
+
+#width, height = 1920, 1080
+width, height = 700, 500
+size = (width, height)
+
+def draw(cairo_ctx):
+    ctx = cairo.Context(cairo_surface)
+
+    # Blank
+    ctx.rectangle(0, 0, width, height)
+    ctx.set_source_rgb(0, 0, 0)
+    ctx.fill()
+
+    #ctx.set_source_rgb(0.5, 0.5, 0.5)
+    #ctx.translate(width/2, height/2)
+    #ctx.arc(0, 0, 50, 0, 7)
+    #ctx.fill()
+    #ctx.translate(width/2, height/2)
+
+    # Text
+    ctx.select_font_face("Eurostile")
+    ctx.set_font_size(40)
+    ctx.move_to(10, 60)
+    ctx.set_source_rgb(1, 1, 1)
+    text = "FOOD:\u00B0 " + str(time.time())
+    ctx.show_text(text)
+    ctx.stroke()
+
+def display(cairo_surface, pygame_screen):
+    #
+    # Code snippet from pygame.org:
+    #
+    #   https://pygame.org/wiki/CairoPygame
+    #
+    cairo_data = cairo_surface.get_data()
+    img = Image.frombuffer('RGBA', size, cairo_data, 'raw', 'BGRA', 0, 1)
+    data = img.tobytes('raw', 'RGBA', 0, 1)
+    pygame_surface = pygame.image.frombuffer(data, size, 'RGBA')
+
+    #
+    # It could be possible to have a Retina friendly version of pygame:
+    #
+    #   (docs)
+    #     http://pygame-sdl2.readthedocs.org/en/latest/#highdpi-retina
+    #
+    #   (example)
+    #     https://github.com/renpy/renpy/blob/master/renpy/gl/gldraw.pyx
+    #
+    # It's not a big deal for now though, as I intend to run this on the linux
+    # framebuffer instead.
+    #
+    pygame_screen.blit(pygame_surface, (0, 0))
+    pygame.display.flip()
+
+# Pygame
+pygame.display.init()
+pygame_screen = pygame.display.set_mode(size, 0, 32)
+
+# Cairo
+cairo_surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, width, height)
+
+clock = pygame.time.Clock()
+while not pygame.QUIT in [e.type for e in pygame.event.get()]:
+    draw(cairo_surface)
+    display(cairo_surface, pygame_screen)
+    clock.tick(60)

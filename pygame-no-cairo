@@ -1,0 +1,202 @@
+#!/usr/bin/env python3
+#
+# OS X:
+#
+#   brew install python3 hg sdl sdl_image sdl_mixer sdl_ttf portmidi
+#   pip3 install hg+http://bitbucket.org/pygame/pygame
+#   pip3 install pillow
+#
+from PIL import Image
+import os
+import pygame
+import random
+import shutil
+import subprocess
+import tempfile
+import time
+
+
+class Data():
+    def has_changed(self):
+        pass
+
+    def get_data(self):
+        pass
+
+
+class SQLiteData(Data):
+    def __init__(db_path):
+        self.db_path = db_path
+
+    def has_changed(self):
+        pass
+
+    def get_data(self):
+        pass
+
+
+class MockData(Data):
+    # f(x) = ax + b
+    class Model():
+        def __init__(self, a, b):
+            self.a = a
+            self.b = b
+            self.rng = random.Random(a * b)
+
+        def f(self, x):
+            y = self.a * x + self.b
+            j = self.rng.random() * self.b
+            return(y + j)
+
+    update_interval = 1
+
+    def __init__(self):
+        self.epoch = time.time()
+        self.t0 = 0
+        self.rng = random.Random(42)
+        self.food_model = self.Model(50.0/3600,  20.0)
+        self.oven_model = self.Model( 5.0/3600, 175.0)
+        self.food_data = []
+        self.oven_data = []
+
+    def has_changed(self):
+        t1 = time.time() - self.epoch
+        dt = t1 - self.t0
+        if dt < self.update_interval:
+            return False
+        while self.t0 < (t1 - self.update_interval):
+            self.t0 += self.update_interval
+            self.food_data.append((self.t0, self.food_model.f(self.t0)))
+            self.oven_data.append((self.t0, self.oven_model.f(self.t0)))
+        return True
+
+    def fetch(self):
+        return (
+            self.epoch,
+            self.food_data,
+            self.oven_data
+        )
+
+
+class Plotter():
+    def __init__(self, size):
+        self.size = size
+        tempbase = tempfile.gettempdir() + '/bluetherm'
+        if not os.path.exists(tempbase):
+            os.mkdir(tempbase)
+        self.tmp = tempfile.mkdtemp(dir=tempbase)
+        self.food_table_path = tempfile.mktemp(dir=self.tmp)
+        self.oven_table_path = tempfile.mktemp(dir=self.tmp)
+
+    def __del__(self):
+        if self.tmp:
+            shutil.rmtree(self.tmp)
+
+    def plot(self, epoch, food_data, oven_data):
+        self._write_data(self.food_table_path, food_data)
+        self._write_data(self.oven_table_path, oven_data)
+        png = tempfile.NamedTemporaryFile(dir=self.tmp, suffix='.png')
+        (width, height) = self.size
+        command = [
+            'Rscript', 'plot.R',
+            epoch,
+            self.food_table_path,
+            self.oven_table_path,
+            png.name,
+            width,
+            height,
+        ]
+        command = [str(c) for c in command]
+        subprocess.check_call(command)
+        return png
+
+    def _write_data(self, path, data):
+        f = open(path, 'w')
+        f.write("time temperature\n")
+        for row in data:
+            f.write(' '.join([str(x) for x in row]))
+            f.write("\n")
+        f.close()
+
+
+data = MockData()
+plotter = Plotter((600, 600))
+
+while True:
+    if data.has_changed():
+        (epoch, food, oven) = data.fetch()
+        print(epoch, len(food))
+        png_tf = plotter.plot(epoch, food, oven)
+        print(png_tf.name)
+    time.sleep(2)
+
+
+"""
+class Display():
+    # Pygame tutorial: https://www.pygame.org/docs/tut/tom/games2.html
+
+    BLACK   = (0x00, 0x00, 0x00)
+    GRAY    = (0x80, 0x80, 0x80)
+    WHITE   = (0xff, 0xff, 0xff)
+
+    def __init__(self, width, height, scale):
+        self.width = width
+        self.height = height
+        self.scale = scale
+
+    def u(self, v):
+        return int(v * self.scale)
+
+    pygame.init()
+    pygame.display.init()
+    screen = pygame.display.set_mode(size, 0, 32)
+    pygame.display.set_caption('BlueTherm Temperature Monitor')
+        
+    #font = pygame.font.Font(None, 36)
+    font = pygame.font.SysFont("Eurostile", u(36))
+
+    def get_clock_time():
+        return time.strftime('%Y.%m.%d %H:%M:%S')
+
+    last_clock_time = None
+    while True:
+        clock_time = get_clock_time()
+        if clock_time == last_clock_time:
+            continue
+        last_clock_time = clock_time
+
+        background = pygame.Surface(screen.get_size())
+        background = background.convert()
+        background.fill(Black)
+
+        t1 = 31.3 + random.random()
+        t2 = 141.3 + random.random()
+
+        text = font.render('BLUETHERM LOG // ' + clock_time, 1, White)
+        rect = text.get_rect()
+        rect.left = 10
+        background.blit(text, rect)
+
+        label = font.render('food:', 1, Gray)
+        rect0 = label.get_rect()
+        rect0.left = 500
+        background.blit(label, rect0)
+
+        value = font.render(str(round(t1, 1)) + '\u00b0C', 1, White)
+        rect1 = value.get_rect()
+        rect1.left = rect0.right + 2
+        background.blit(value, rect1)
+
+        label = font.render('oven:', 1, Gray)
+        rect0 = label.get_rect()
+        rect0.left = 620
+        background.blit(label, rect0)
+
+        value = font.render(str(round(t2, 1)) + '\u00b0C', 1, White)
+        rect1 = value.get_rect()
+        rect1.left = rect0.right + 2
+        background.blit(value, rect1)
+
+        screen.blit(background, (0, 0))
+        pygame.display.flip()
+"""
