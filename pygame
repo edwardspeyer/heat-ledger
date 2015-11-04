@@ -193,21 +193,19 @@ class WallClock(pygame.sprite.DirtySprite):
         self.format = format
         self.last = None
 
-        dummy = self._text(self._clock_string())
+        dummy = self._text(time.strftime(format))
         self.image = pygame.Surface(dummy.get_rect().size)
         self.rect = self.image.get_rect()
 
     def update(self):
-        now = self._clock_string()
+        now = int(time.time())
         if now == self.last:
             return
-        text = self._text(now)
+        self.last = now
+        text = self._text(time.strftime(self.format))
         self.image.fill(Color.black)
         self.image.blit(text, (0, 0))
         self.dirty = 1
-
-    def _clock_string(self):
-        return time.strftime(self.format)
 
     def _text(self, clock_string):
         return self.font.render(clock_string, 1, Color.gray)
