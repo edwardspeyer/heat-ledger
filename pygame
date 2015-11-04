@@ -1,11 +1,61 @@
 #!/usr/bin/env python3
-#
-# OS X:
-#
-#   brew install python3 hg sdl sdl_image sdl_mixer sdl_ttf portmidi
-#   pip3 install hg+http://bitbucket.org/pygame/pygame
-#   pip3 install pillow
-#
+"""
+
+= OS X:
+
+  brew install python3 hg sdl sdl_image sdl_mixer sdl_ttf portmidi
+  pip3 install hg+http://bitbucket.org/pygame/pygame
+  pip3 install pillow
+
+= Debian 8:
+
+There is no python3-pygame package, but we can build our own.  I used this
+pygame:
+
+    http://www.pygame.org/ftp/pygame-1.9.1release.tar.gz
+
+I needed these dependencies:
+
+    $ sudo apt-get install python3-dev libsdl1.2-dev libsdl-image1.2-dev libsdl-ttf2.0-dev
+
+More are potentially needed:
+
+    http://stackoverflow.com/questions/7652385/where-can-i-find-and-install-the-dependencies-for-pygame
+
+The installation should then be easy.  pygame camera support is currently
+disabled in python3 onwards, which is good because it won't compile anyway as
+Debian 8 is missing a <linux/video.h> header.
+
+    $ mkdir -p /opt/pygame/src
+    $ cd /opt/pygame/src
+    $ hg clone https://bitbucket.org/pygame/pygame
+    $ cd pygame
+    $ python3 setup.py install --prefix=/opt/pygame
+
+...but that failed to run, complaining about a missing object:
+
+    $ PYTHONPATH=/opt/pygame/lib/python3.4/site-packages ./pygame
+    Traceback (most recent call last):
+      File "./pygame", line 41, in <module>
+        import pygame
+      File "/opt/pygame/lib/python3.4/site-packages/pygame/__init__.py", line 95, in <module>
+        from pygame.base import *
+    ImportError: /opt/pygame/lib/python3.4/site-packages/pygame/base.cpython-34m.so: undefined symbol: PyCObject_Check
+
+Clone the hg repo, and build from there instead!
+
+It all works!!!
+
+    $ sudo env PYTHONPATH=/opt/pygame/lib/python3.4/site-packages ./pygame
+
+If you have Eurostile, make sure it is in one of:
+
+    * /usr/share/fonts
+    * /usr/local/share/fonts
+    * ~/.fonts
+
+"""
+
 from PIL import Image
 import os
 import pygame
