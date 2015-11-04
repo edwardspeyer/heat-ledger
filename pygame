@@ -9,13 +9,14 @@
 from PIL import Image
 import os
 import pygame
+import queue
 import random
-import shutil
+import signal
 import subprocess
+import sys
 import tempfile
 import threading
 import time
-import queue
 
 
 class DataSource():
@@ -84,27 +85,25 @@ class MockDataSource(DataSource):
 class Plotter():
     def __init__(self, size):
         self.size = size
-        tempbase = tempfile.gettempdir() + '/bluetherm'
-        if not os.path.exists(tempbase):
-            os.mkdir(tempbase)
-        self.tmp = tempfile.mkdtemp(dir=tempbase)
-        self.food_table_path = tempfile.mktemp(dir=self.tmp)
-        self.oven_table_path = tempfile.mktemp(dir=self.tmp)
+        self.food_table = self._tf('food', 'table')
+        self.oven_table = self._tf('oven', 'table')
 
-    def __del__(self):
-        if self.tmp:
-            shutil.rmtree(self.tmp)
+    def _tf(self, prefix, suffix):
+        return tempfile.NamedTemporaryFile(
+            prefix='bluetherm-plotter-' + prefix,
+            suffix=suffix
+        )
 
     def plot(self, epoch, food_data, oven_data):
-        self._write_data(self.food_table_path, food_data)
-        self._write_data(self.oven_table_path, oven_data)
-        png = tempfile.NamedTemporaryFile(dir=self.tmp, suffix='.png')
+        self._write_data(self.food_table.name, food_data)
+        self._write_data(self.oven_table.name, oven_data)
+        png = self._tf('plot', 'png')
         (width, height) = self.size
         command = [
             'Rscript', 'plot.R',
             epoch,
-            self.food_table_path,
-            self.oven_table_path,
+            self.food_table.name,
+            self.oven_table.name,
             png.name,
             width,
             height,
@@ -135,65 +134,6 @@ WHITE = (0xff, 0xff, 0xff)
 # fonts don't reliably render at the same vertical position frame-after-frame
 # :/
 #
-class StatusLine(pygame.sprite.DirtySprite):
-    HEIGHT = 50
-
-    def __init__(self, width):
-        pygame.sprite.DirtySprite.__init__(self)
-
-        self.width = width
-        self.font = pygame.font.SysFont("Eurostile", 36)
-
-        self.image = pygame.Surface([width, self.HEIGHT])
-        self.rect = self.image.get_rect()
-        
-        self.image.fill(BLACK)
-
-        self.last_clock = None
-        self.food_t = None
-        self.oven_t = None
-
-    def set_food_t(self, t):
-        self.food_t = t
-
-    def set_oven_t(self, t):
-        self.oven_t = t
-
-    def update(self):
-        clock = time.strftime('%Y.%m.%d %H:%M:%S')
-        if (clock == self.last_clock and
-                self.oven_t is not None and
-                self.food_t is not None):
-            return
-
-        # clock
-        clock_text = self.font.render(clock, 1, WHITE)
-        self.image.fill(BLACK)
-        self.image.blit(clock_text, clock_text.get_rect())
-
-        # temps
-        self._render_t('food', self.food_t, 420)
-        self._render_t('oven', self.oven_t, 175)
-
-        self.food_t = None
-        self.oven_t = None
-        self.last_clock = clock
-        self.dirty = 1
-
-    def _render_t(self, label, t, right):
-        label_text = self.font.render(label, 1, GRAY)
-        if t is None:
-            value_text = self.font.render('..', 1, GRAY)
-        else:
-            t_str = str(round(t, 1)) + "\u00b0C"
-            value_text = self.font.render(t_str, 1, WHITE)
-        label_rect = label_text.get_rect()
-        value_rect = value_text.get_rect()
-        label_rect.right = self.width - right - 5
-        value_rect.left  = self.width - right - 0
-        self.image.blit(label_text, label_rect)
-        self.image.blit(value_text, value_rect)
-
 
 class WallClock(pygame.sprite.DirtySprite):
     def __init__(self, font, format='%Y.%m.%d %H:%M:%S'):
@@ -285,15 +225,21 @@ class PlotPane(pygame.sprite.DirtySprite):
         self.image.blit(inverse, (0, 0))
         self.dirty = 1
 
-g_width = 1100
-g_height = 800
-size = (g_width, g_height)
-
 pygame.init()
 pygame.display.init()
 
-data_source = MockDataSource()
-plotter = Plotter((g_width, g_height - StatusLine.HEIGHT))
+info = pygame.display.Info()
+g_width, g_height = info.current_w, info.current_h
+
+if sys.platform == 'darwin':
+    g_width  = int(0.9 * g_width)
+    g_height = int(0.9 * g_height)
+
+g_font_size = int(g_width / 36)
+
+size = (g_width, g_height)
+
+pygame.mouse.set_visible(False)
 
 clock = pygame.time.Clock()
 screen = pygame.display.set_mode(size, 0, 32)
@@ -302,7 +248,7 @@ background = pygame.Surface(screen.get_size())
 background = background.convert()
 background.fill(BLACK)
 
-font = pygame.font.SysFont('Eurostile', 36)
+font = pygame.font.SysFont('Eurostile', g_font_size)
 
 wall_clock = WallClock(font)
 wall_clock.rect.topleft = (10, 10)
@@ -322,6 +268,9 @@ plot_pane = PlotPane(
 plot_pane.rect.top = wall_clock.rect.bottom + 10
 plot_pane.rect.left = 10
 
+data_source = MockDataSource()
+plotter = Plotter((plot_pane.rect.width, plot_pane.rect.height))
+
 allsprites = pygame.sprite.LayeredDirty((
     wall_clock,
     food_temperature,
@@ -339,7 +288,8 @@ class PlotWorker(threading.Thread):
         self.q = queue.Queue()
 
     def run(self):
-        while True:
+        self.running = True
+        while self.running:
             epoch = None
             while not self.q.empty():
                 (epoch, food_data, oven_data) = self.q.get()
@@ -358,7 +308,13 @@ class PlotWorker(threading.Thread):
 pw = PlotWorker(plotter)
 pw.start()
 
-while 1:
+def signal_handler(signal, frame):
+    pygame.event.post(pygame.event.Event(pygame.QUIT))
+
+signal.signal(signal.SIGINT, signal_handler)
+
+is_run = True
+while is_run:
     clock.tick(30)
 
     if data_source.has_changed():
@@ -374,10 +330,18 @@ while 1:
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
-            sys.exit()
+            is_run = False
         elif event.type == PlotWorker.PLOTREADY:
             plot_pane.load(event.png_path)
+        elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_ESCAPE:
+                pygame.event.post(pygame.event.Event(pygame.QUIT))
 
     allsprites.update()
     rects = allsprites.draw(screen)
     pygame.display.update(rects)
+
+pygame.quit()
+pw.running = False
+pw.join()
+sys.exit()

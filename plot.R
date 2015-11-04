@@ -29,10 +29,10 @@ par(
     cex=3.0,
     family="mono",
     mar=c(
-        3.0,    # bottom
+        2.0,    # bottom
         2.0,    # left
         0.5,    # top
-        1.0     # right
+        0.5     # right
     )
 )
 
