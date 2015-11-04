@@ -278,6 +278,38 @@ class TemperatureReading(pygame.sprite.DirtySprite):
             return self.font.render(t_str, 1, color)
 
 
+class CountdownBar(pygame.sprite.DirtySprite):
+    TIMEOUT = 10000 # ms
+
+    def __init__(self, size):
+        pygame.sprite.DirtySprite.__init__(self)
+        self.image = pygame.Surface(size)
+        self.rect = self.image.get_rect()
+        self.reset()
+
+    def reset(self):
+        self.image.fill(Color.gray)
+        self.start_ms = pygame.time.get_ticks()
+        self.last_dur_ms = None
+
+    def update(self):
+        dur_ms = pygame.time.get_ticks() - self.start_ms
+        dur_ms = 100 * (dur_ms // 100)
+        if dur_ms == self.last_dur_ms:
+            return
+        self.last_dur_ms = dur_ms
+        if dur_ms < self.TIMEOUT:
+            w = self.rect.width
+            bar = pygame.Rect(
+                w - (w * dur_ms // self.TIMEOUT),
+                0,
+                w,
+                self.rect.height
+            )
+            self.image.fill(Color.black, bar)
+            self.dirty = 1
+
+
 class PlotPane(pygame.sprite.DirtySprite):
     def __init__(self, size):
         pygame.sprite.DirtySprite.__init__(self)
@@ -328,11 +360,14 @@ oven_temperature = TemperatureReading(font, 'oven')
 oven_temperature.rect.top = 10
 oven_temperature.rect.right = food_temperature.rect.left - 30
 
-plot_pane = PlotPane(
-    (g_width - (10 * 2),
-    g_height - wall_clock.rect.height - (10 * 3))
-)
-plot_pane.rect.top = wall_clock.rect.bottom + 10
+countdown_bar = CountdownBar((g_width, 3))
+countdown_bar.rect.topleft = (0, wall_clock.rect.bottom + 10)
+
+plot_pane = PlotPane((
+    g_width - (10 * 2),
+    g_height - countdown_bar.rect.bottom
+))
+plot_pane.rect.top = countdown_bar.rect.bottom + 10
 plot_pane.rect.left = 10
 
 data_source = MockDataSource()
@@ -342,6 +377,7 @@ allsprites = pygame.sprite.LayeredDirty((
     wall_clock,
     food_temperature,
     oven_temperature,
+    countdown_bar,
     plot_pane,
 ))
 allsprites.clear(screen, background)
@@ -385,7 +421,8 @@ signal.signal(signal.SIGINT, signal_handler)
 
 is_run = True
 while is_run:
-    clock.tick(60)
+    clock.tick(30)
+    print(clock.get_fps())
 
     if data_source.has_changed():
         new = data_source.fetch()
@@ -403,6 +440,7 @@ while is_run:
             oven_t = event.oven_data[-1][1]
             food_temperature.set(food_t)
             oven_temperature.set(oven_t)
+            countdown_bar.reset()
         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
                 pygame.event.post(pygame.event.Event(pygame.QUIT))
