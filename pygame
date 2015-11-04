@@ -365,7 +365,7 @@ countdown_bar.rect.topleft = (0, wall_clock.rect.bottom + 10)
 
 plot_pane = PlotPane((
     g_width - (10 * 2),
-    g_height - countdown_bar.rect.bottom
+    g_height - countdown_bar.rect.bottom - 20
 ))
 plot_pane.rect.top = countdown_bar.rect.bottom + 10
 plot_pane.rect.left = 10
@@ -422,7 +422,6 @@ signal.signal(signal.SIGINT, signal_handler)
 is_run = True
 while is_run:
     clock.tick(30)
-    print(clock.get_fps())
 
     if data_source.has_changed():
         new = data_source.fetch()
