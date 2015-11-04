@@ -56,7 +56,6 @@ If you have Eurostile, make sure it is in one of:
 
 """
 
-from PIL import Image
 import os
 import pygame
 import queue
@@ -391,7 +390,7 @@ while is_run:
     rects = allsprites.draw(screen)
     pygame.display.update(rects)
 
-pygame.quit()
 pw.running = False
 pw.join()
+pygame.quit()
 sys.exit()
