@@ -23,13 +23,40 @@ png_path    <-            args[4]
 width       <- as.numeric(args[5])
 height      <- as.numeric(args[6])
 
-png(png_path, width=width, height=height)
+png(png_path, width=width, height=height, units="px")
 
-par(cex=3.0, family="mono")
+par(
+    cex=3.0,
+    family="mono",
+    mar=c(
+        3.0,    # bottom
+        2.0,    # left
+        0.5,    # top
+        1.0     # right
+    )
+)
+
+temperature_range <- range(c(
+    0,
+    150,
+    food$temperature,
+    oven$temperature
+))
+
+time_range <- range(c(
+    0,
+    300,
+    food$time,
+    oven$time
+))
 
 plot(
     food$temperature ~ food$time,
-    type="l"
+    type="l",
+    xlab='',
+    ylab='',
+    xlim=time_range,
+    ylim=temperature_range
 )
 
 points(
