@@ -212,7 +212,7 @@ class WallClock(pygame.sprite.DirtySprite):
 
 
 class TemperatureReading(pygame.sprite.DirtySprite):
-    LABEL_MARGIN_RIGHT = 7
+    LABEL_MARGIN_RIGHT = 12
     UNSET = -300.0
     RATE = 20
 
@@ -358,7 +358,7 @@ food_temperature.rect.right = g_width - 10
 
 oven_temperature = TemperatureReading(font, 'oven')
 oven_temperature.rect.top = 10
-oven_temperature.rect.right = food_temperature.rect.left - 30
+oven_temperature.rect.right = food_temperature.rect.left - 50
 
 countdown_bar = CountdownBar((g_width, 3))
 countdown_bar.rect.topleft = (0, wall_clock.rect.bottom + 10)
