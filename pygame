@@ -100,7 +100,7 @@ class MockDataSource(DataSource):
             j = self.rng.random() * self.b * 0.05
             return(y + j)
 
-    update_interval = 1
+    update_interval = 3
 
     def __init__(self):
         self.epoch = time.time()
@@ -216,17 +216,21 @@ class WallClock(pygame.sprite.DirtySprite):
 class TemperatureReading(pygame.sprite.DirtySprite):
     LABEL_MARGIN_RIGHT = 7
     UNSET = -300.0
+    RATE = 4
 
     def __init__(self, font, label):
         pygame.sprite.DirtySprite.__init__(self)
 
         self.font = font
         self.label = label
-        self.last_reading = self.UNSET
         self.label_text = self.font.render(label, 1, Color.gray)
         self.label_width = self.label_text.get_rect().width
 
-        dummy_value_text = self._build_value_text(999.0)
+        self.t0 = None
+        self.t1 = None
+        self.pp = 100
+
+        dummy_value_text = self._build_value_text(999.0, Color.white)
         height = font.get_linesize() # Approx. ascent + descent + 1
         width = (
             self.label_width +
@@ -239,26 +243,35 @@ class TemperatureReading(pygame.sprite.DirtySprite):
         self.set(None)
 
     def set(self, t):
-        if t == self.last_reading:
+        self.t0 = self.t1
+        self.t1 = t
+        self.pp = 0
+
+    def update(self):
+        if self.pp == 100:
             return
         self.image.fill(Color.black)
         self.image.blit(self.label_text, (0, 0))
-        value_text = self._build_value_text(t)
+        self.pp = min(100, self.pp + self.RATE)
+        if self.pp < 50:
+            v = 100 - (2 * self.pp)
+            t = self.t0
+        else:
+            v = (2 * self.pp) - 100
+            t = self.t1
+        color = [0xff * (v/100.0) for _ in range(3)]
+        value_text = self._build_value_text(t, color)
         value_rect = value_text.get_rect()
-        value_rect.left = (
-            self.label_width +
-            self.LABEL_MARGIN_RIGHT
-        )
+        value_rect.left = self.label_width + self.LABEL_MARGIN_RIGHT
         self.image.blit(value_text, value_rect)
-        self.last_reading = t
         self.dirty = 1
 
-    def _build_value_text(self, t):
+    def _build_value_text(self, t, color):
         if t is None:
-            return self.font.render('.....', 1, Color.gray)
+            return self.font.render('.....', 1, color)
         else:
             t_str = str(round(float(t), 1)) + "\u00B0C"
-            return self.font.render(t_str, 1, Color.white)
+            return self.font.render(t_str, 1, color)
 
 
 class PlotPane(pygame.sprite.DirtySprite):
@@ -365,7 +378,7 @@ signal.signal(signal.SIGINT, signal_handler)
 
 is_run = True
 while is_run:
-    clock.tick(30)
+    clock.tick(60)
 
     if data_source.has_changed():
         new = data_source.fetch()
