@@ -174,9 +174,10 @@ class Plotter():
         f.close()
 
 
-BLACK = (0x00, 0x00, 0x00)
-GRAY  = (0x80, 0x80, 0x80)
-WHITE = (0xff, 0xff, 0xff)
+class Color():
+    black = (0x00, 0x00, 0x00)
+    gray  = (0x80, 0x80, 0x80)
+    white = (0xff, 0xff, 0xff)
 
 #
 # Also available is the pygame.freetype stuff.  The kerning is better but the
@@ -201,7 +202,7 @@ class WallClock(pygame.sprite.DirtySprite):
         if now == self.last:
             return
         text = self._text(now)
-        self.image.fill(BLACK)
+        self.image.fill(Color.black)
         self.image.blit(text, (0, 0))
         self.dirty = 1
 
@@ -209,7 +210,7 @@ class WallClock(pygame.sprite.DirtySprite):
         return time.strftime(self.format)
 
     def _text(self, clock_string):
-        return self.font.render(clock_string, 1, GRAY)
+        return self.font.render(clock_string, 1, Color.gray)
 
 
 class TemperatureReading(pygame.sprite.DirtySprite):
@@ -222,7 +223,7 @@ class TemperatureReading(pygame.sprite.DirtySprite):
         self.font = font
         self.label = label
         self.last_reading = self.UNSET
-        self.label_text = self.font.render(label, 1, GRAY)
+        self.label_text = self.font.render(label, 1, Color.gray)
         self.label_width = self.label_text.get_rect().width
 
         dummy_value_text = self._build_value_text(999.0)
@@ -240,7 +241,7 @@ class TemperatureReading(pygame.sprite.DirtySprite):
     def set(self, t):
         if t == self.last_reading:
             return
-        self.image.fill(BLACK)
+        self.image.fill(Color.black)
         self.image.blit(self.label_text, (0, 0))
         value_text = self._build_value_text(t)
         value_rect = value_text.get_rect()
@@ -254,10 +255,10 @@ class TemperatureReading(pygame.sprite.DirtySprite):
 
     def _build_value_text(self, t):
         if t is None:
-            return self.font.render('.....', 1, GRAY)
+            return self.font.render('.....', 1, Color.gray)
         else:
             t_str = str(round(float(t), 1)) + "\u00B0C"
-            return self.font.render(t_str, 1, WHITE)
+            return self.font.render(t_str, 1, Color.white)
 
 
 class PlotPane(pygame.sprite.DirtySprite):
@@ -295,7 +296,7 @@ screen = pygame.display.set_mode(size, 0, 32)
 
 background = pygame.Surface(screen.get_size())
 background = background.convert()
-background.fill(BLACK)
+background.fill(Color.black)
 
 font = pygame.font.SysFont('Eurostile', g_font_size)
 
