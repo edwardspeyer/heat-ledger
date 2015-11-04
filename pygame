@@ -216,7 +216,7 @@ class WallClock(pygame.sprite.DirtySprite):
 class TemperatureReading(pygame.sprite.DirtySprite):
     LABEL_MARGIN_RIGHT = 7
     UNSET = -300.0
-    RATE = 4
+    RATE = 20
 
     def __init__(self, font, label):
         pygame.sprite.DirtySprite.__init__(self)
@@ -229,6 +229,7 @@ class TemperatureReading(pygame.sprite.DirtySprite):
         self.t0 = None
         self.t1 = None
         self.pp = 100
+        self.is_first = True
 
         dummy_value_text = self._build_value_text(999.0, Color.white)
         height = font.get_linesize() # Approx. ascent + descent + 1
@@ -243,15 +244,20 @@ class TemperatureReading(pygame.sprite.DirtySprite):
         self.set(None)
 
     def set(self, t):
-        self.t0 = self.t1
-        self.t1 = t
-        self.pp = 0
+        if self.t1 != t:
+            self.t0 = self.t1
+            self.t1 = t
+            self.pp = 0
 
     def update(self):
-        if self.pp == 100:
+        if self.is_first:
+            self.is_first = False
+        elif self.pp == 100:
             return
+
         self.image.fill(Color.black)
         self.image.blit(self.label_text, (0, 0))
+
         self.pp = min(100, self.pp + self.RATE)
         if self.pp < 50:
             v = 100 - (2 * self.pp)
@@ -365,6 +371,9 @@ class PlotWorker(threading.Thread):
                 self.PLOTREADY,
                 png_tempfile=png_tempfile,  # pass to avoid garbage collection
                 png_path=png_tempfile.name,
+                epoch=epoch,
+                food_data=food_data,
+                oven_data=oven_data,
             )
             pygame.event.post(event)
 
@@ -382,20 +391,20 @@ while is_run:
 
     if data_source.has_changed():
         new = data_source.fetch()
+        # Defer updating food_temperature and oven_temperature until the
+        # plot_pane is redrawn -- an expensive operation that makes makes
+        # animations jerky!
         pw.q.put(new)
-        (epoch, food_data, oven_data) = new
-        if len(food_data) > 0:
-            food_t = food_data[-1][1]
-            food_temperature.set(food_t)
-        if len(oven_data) > 0:
-            oven_t = oven_data[-1][1]
-            oven_temperature.set(oven_t)
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             is_run = False
         elif event.type == PlotWorker.PLOTREADY:
             plot_pane.load(event.png_path)
+            food_t = event.food_data[-1][1]
+            oven_t = event.oven_data[-1][1]
+            food_temperature.set(food_t)
+            oven_temperature.set(oven_t)
         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
                 pygame.event.post(pygame.event.Event(pygame.QUIT))
