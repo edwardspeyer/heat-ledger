@@ -73,16 +73,11 @@ class DataSource():
     def time(self):
         pass
 
-    def has_changed(self):
-        pass
-
-    def fetch(self):
+    def fetch_new(self):
         pass
 
 
 class SQLiteDataSource(DataSource):
-    NORMAL_GAP_BETWEEN_COOKS = 3600
-
     def __init__(db_path):
         self.db_path = db_path
         self.con = sqlite3.connect(db_path)
@@ -97,9 +92,9 @@ class SQLiteDataSource(DataSource):
     def has_changed(self):
         vf = self._read(2, self.food)
         vo = self._read(1, self.oven)
-        return(vf || vo)
+        return(vf or vo)
 
-    def fetch(self):
+    def fetch_new(self):
         res = (self.food[:], self.oven[:])
         self.food = []
         self.oven = []
@@ -131,7 +126,6 @@ class SQLiteDataSource(DataSource):
         return buf
 
 
-
 class MockDataSource(DataSource):
     UPDATE_INTERVAL = 10
     SPEED_UP = 60
@@ -139,34 +133,52 @@ class MockDataSource(DataSource):
     def __init__(self):
         self.epoch = time.time()
         self.t0 = 0
-        self.rng = random.Random(42)
-        self.lock = threading.Lock()
-        self.food_data = []
-        self.oven_data = []
 
     def time(self):
         actual_duration = time.time() - self.epoch
         return(self.epoch + (self.SPEED_UP * actual_duration))
 
-    def has_changed(self):
-        t1 = self.time() - self.epoch
+    def fetch_new(self):
+        now = self.time()
+        t1 = now - self.epoch
         dt = t1 - self.t0
         if dt < self.UPDATE_INTERVAL:
-            return False
-        with self.lock:
-            while self.t0 < (t1 - self.UPDATE_INTERVAL):
-                self.t0 += self.UPDATE_INTERVAL
-                oven_t = 175.0
-                food_t = 20 + (50/3600 * t1)
-                self.food_data.append((self.t0, food_t))
-                self.oven_data.append((self.t0, oven_t))
-        return True
+            return None
+        food, oven = [], []
+        while self.t0 < (t1 - self.UPDATE_INTERVAL):
+            self.t0 += self.UPDATE_INTERVAL
+            oven_t = 175.0
+            food_t = 20 + (50/3600 * t1)
+            food.append((self.t0, food_t))
+            oven.append((self.t0, oven_t))
+        return(self.epoch, now, food, oven)
+
+
+class DataBuffer(DataSource):
+    MAX_GAP = 3600
+
+    def __init__(self, data_source):
+        self.data_source = data_source
+        self.food = []
+        self.oven = []
 
     def fetch(self):
-        with self.lock:
-            food = self.food_data[:]
-            oven = self.oven_data[:]
-        return (self.epoch, self.time(), food, oven)
+        new = self.data_source.fetch_new()
+        if new is None: 
+            return None
+        (epoch, now, food, oven) = new
+        self._add(self.food, food)
+        self._add(self.oven, oven)
+        return(epoch, now, self.food, self.oven)
+
+    def _add(self, ar0, ar1):
+        for pair1 in ar1:
+            if len(ar0) > 0:
+                time0 = ar0[-1][0]
+                time1 = pair1[0]
+                if time1 - time0 > self.MAX_GAP:
+                    ar0.clear()
+            ar0.append(pair1)
 
 
 class Plotter():
@@ -361,6 +373,28 @@ class PlotPane(pygame.sprite.DirtySprite):
         self.image.blit(plot_image, (0, 0))
         self.dirty = 1
 
+
+class Foo():
+    def __init__(self):
+        self.seq = 0
+        self._time = 0
+        self.rng = random.Random(123)
+
+    def time(self):
+        t = self._time
+        self._time += 1
+        return t
+
+    def fetch(self):
+        if self.seq % 5 == 0:
+            self._time += 5000
+        food, oven = [], []
+        t = self.time()
+        food.append((t, self.seq))
+        oven.append((t, self.seq))
+        self.seq += 1
+        return(food, oven)
+
 pygame.init()
 pygame.display.init()
 
@@ -377,6 +411,7 @@ g_font_size = int(g_width / 36)
 size = (g_width, g_height)
 
 data_source = MockDataSource()
+data_buffer = DataBuffer(data_source)
 
 pygame.mouse.set_visible(False)
 
@@ -468,8 +503,8 @@ is_run = True
 while is_run:
     clock.tick(30)
 
-    if data_source.has_changed():
-        new = data_source.fetch()
+    new = data_buffer.fetch()
+    if new:
         # Defer updating food_temperature and oven_temperature until the
         # plot_pane is redrawn -- an expensive operation that makes makes
         # animations jerky!
