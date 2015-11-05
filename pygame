@@ -466,10 +466,18 @@ class PlotWorker(threading.Thread):
 pw = PlotWorker(plotter)
 pw.start()
 
-def signal_handler(signal, frame):
-    pygame.event.post(pygame.event.Event(pygame.QUIT))
+def quit():
+    print('quitting...')
+    pw.running = False
+    pw.join()
+    #pygame.quit()
+    sys.exit()
 
-signal.signal(signal.SIGINT, signal_handler)
+def signal_handler(signal, frame):
+    quit()
+
+for sig in [signal.SIGINT, signal.SIGTERM]:
+    signal.signal(sig, signal_handler)
 
 is_run = True
 while is_run:
@@ -484,7 +492,7 @@ while is_run:
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
-            is_run = False
+            quit()
         elif event.type == PlotWorker.PLOTREADY:
             plot_pane.load(event.png_path)
             if len(event.food_data) > 0:
@@ -496,13 +504,9 @@ while is_run:
             countdown_bar.reset()
         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
-                pygame.event.post(pygame.event.Event(pygame.QUIT))
+                quit()
 
     allsprites.update()
     rects = allsprites.draw(screen)
     pygame.display.update(rects)
 
-pw.running = False
-pw.join()
-pygame.quit()
-sys.exit()
