@@ -94,7 +94,8 @@ class SQLiteDataSource(DataSource):
 
 
 class MockDataSource(DataSource):
-    update_interval = 10
+    UPDATE_INTERVAL = 10
+    SPEED_UP = 60
 
     def __init__(self):
         self.epoch = time.time()
@@ -106,18 +107,18 @@ class MockDataSource(DataSource):
 
     def time(self):
         actual_duration = time.time() - self.epoch
-        return(self.epoch + (10 * actual_duration))
+        return(self.epoch + (self.SPEED_UP * actual_duration))
 
     def has_changed(self):
         t1 = self.time() - self.epoch
         dt = t1 - self.t0
-        if dt < self.update_interval:
+        if dt < self.UPDATE_INTERVAL:
             return False
         with self.lock:
-            while self.t0 < (t1 - self.update_interval):
-                self.t0 += self.update_interval
+            while self.t0 < (t1 - self.UPDATE_INTERVAL):
+                self.t0 += self.UPDATE_INTERVAL
                 oven_t = 175.0
-                food_t = 20 + (0.3 * t1)
+                food_t = 20 + (50/3600 * t1)
                 self.food_data.append((self.t0, food_t))
                 self.oven_data.append((self.t0, oven_t))
         return True

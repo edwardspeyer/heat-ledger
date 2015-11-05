@@ -76,7 +76,10 @@ for (target in Targets) {
 t2 <- now - epoch
 t1 <- t2 - Model_Window_Size
 
-recent <- food[food$time > t1 && food$time < t2,]
+recent <- food
+recent <- recent[recent$time > t1,]
+recent <- recent[recent$time < t2,]
+
 if (nrow(recent) >= 3) {
     model <- lm(recent$temperature ~ recent$time)
     # T = at + b  =>  t = (T - b)/a
