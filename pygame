@@ -196,7 +196,7 @@ class Plotter():
         ]
         command = [str(c) for c in command]
         try:
-            subprocess.check_call(command)
+            subprocess.check_call(command, timeout=5)
             return png
         except subprocess.CalledProcessError as ex:
             # The actual error will show up on STDERR
