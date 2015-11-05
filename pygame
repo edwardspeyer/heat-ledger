@@ -56,6 +56,7 @@ If you have Eurostile, make sure it is in one of:
 
 """
 
+import optparse
 import os
 import pygame
 import queue
@@ -78,29 +79,26 @@ class DataSource():
 
 
 class SQLiteDataSource(DataSource):
-    def __init__(db_path):
+    def __init__(self, db_path):
         self.db_path = db_path
         self.con = sqlite3.connect(db_path)
         yesterday = self.time() - 86400
-        self.mtimes = (yesterday, yesterday)
-        self.food = []
-        self.oven = []
+        self.food_mtime = yesterday
+        self.oven_mtime = yesterday
 
     def time(self):
         return time.time()
 
-    def has_changed(self):
-        vf = self._read(2, self.food)
-        vo = self._read(1, self.oven)
-        return(vf or vo)
-
     def fetch_new(self):
-        res = (self.food[:], self.oven[:])
-        self.food = []
-        self.oven = []
-        return res
+        new_food = self._read(2, self.food_mtime)
+        if len(new_food) > 0:
+            self.food_mtime = new_food[-1][0]
+        new_oven = self._read(1, self.oven_mtime)
+        if len(new_oven) > 0:
+            self.oven_mtime = new_oven[-1][0]
+        return(new_food, new_oven)
 
-    def _read(self, sensor, buf):
+    def _read(self, sensor, since):
         mtime = buf[-1][0]
         now = self.time()
         template = (
@@ -366,6 +364,21 @@ class PlotPane(pygame.sprite.DirtySprite):
         self.dirty = 1
 
 
+parser = optparse.OptionParser()
+parser.add_option('--test')
+parser.add_option(
+    '--sqlite-path',
+    type='string',
+    default='/var/lib/bluethermd/sqlite',
+    dest='sqlite_path',
+)
+(options, args) = parser.parse_args()
+
+if options.test:
+    data_source = MockDataSource()
+else:
+    data_source = SQLiteDataSource(options.sqlite_path)
+
 pygame.init()
 pygame.display.init()
 
@@ -381,7 +394,6 @@ g_font_size = int(g_width / 36)
 
 size = (g_width, g_height)
 
-data_source = MockDataSource()
 data_buffer = DataBuffer(data_source)
 
 pygame.mouse.set_visible(False)
