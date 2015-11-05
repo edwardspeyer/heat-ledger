@@ -230,12 +230,6 @@ class Color():
     gray  = (0x80, 0x80, 0x80)
     white = (0xff, 0xff, 0xff)
 
-#
-# Also available is the pygame.freetype stuff.  The kerning is better but the
-# fonts don't reliably render at the same vertical position frame-after-frame
-# :/
-#
-
 class WallClock(pygame.sprite.DirtySprite):
     def __init__(self, time_fn, font, format='%Y.%m.%d %H:%M:%S'):
         pygame.sprite.DirtySprite.__init__(self)
@@ -422,6 +416,8 @@ background = pygame.Surface(screen.get_size())
 background = background.convert()
 background.fill(Color.black)
 
+# The FreeType parts of pygame have better kerning, but have a bug whereby the
+# baseline has jitter.
 font = pygame.font.SysFont('Eurostile', g_font_size)
 
 wall_clock = WallClock(data_source.time, font)
