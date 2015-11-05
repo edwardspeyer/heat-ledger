@@ -1,18 +1,11 @@
-#options(warn=-1)
+Targets <- c(
+    55,     # beef muscle, rare
+    65,     # poultry, rare
+    75,     # poultry, done
+    85      # beef tissue, done
+)
 
-Targets <- c(55, 65, 75, 85)
 Model_Window_Size <- 300
-
-model <- function(time_now, data) {
-    t1 <- time_now - Model_Window_Size
-    t2 <- time_now
-    recent <- data[data$time > t1 && data$time < t2,]
-    if (nrow(recent) < 3) {
-        return(NULL)
-    } else {
-        return(lm(recent$temperature ~ recent$time))
-    }
-}
 
 args <- commandArgs(trailingOnly = TRUE)
 
@@ -23,11 +16,20 @@ png_path    <-            args[4]
 width       <- as.numeric(args[5])
 height      <- as.numeric(args[6])
 
-png(png_path, width=width, height=height, units="px")
+png(
+    png_path,
+    width=width,
+    height=height,
+    units="px"
+)
 
 par(
-    cex=3.0,
+    cex=(width / 640),  # 1920 px wide => cex=3.0
     family="mono",
+    col.lab='white',
+    col.axis='white',
+    fg='white',
+    bg='black',
     mar=c(
         2.0,    # bottom
         2.0,    # left
@@ -63,5 +65,35 @@ points(
     oven$temperature ~ oven$time,
     type="l"
 )
+    
+for (target in Targets) {
+    abline(target, 0, lt=3, col=8)
+    label <- paste(target, "\u00B0C", sep="")
+    text(0, target, label, pos=4, col='gray')
+}
+
+t2 <- Sys.time() - epoch
+t1 <- t2 - Model_Window_Size
+
+recent <- food[food$time > t1 && food$time < t2,]
+if (nrow(recent) >= 3) {
+    model <- lm(recent$temperature ~ recent$time)
+    # T = at + b  =>  t = (T - b)/a
+    a <- model$coefficients[[2]]
+    b <- model$coefficients[[1]]
+    for (target in Targets) {
+        done_time <- (target - b) / a
+        abline(v=done_time, lt=3, col=8)
+        label <- strftime(
+            as.POSIXct(
+                epoch + done_time,
+                origin="1970-01-01"
+            ),
+            '%H:%M'
+        )
+        text(done_time, target, label, pos=2)
+        points(done_time, target, type="p", lwd=4, col="red")
+    }
+}
 
 graphics.off()

@@ -318,10 +318,7 @@ class PlotPane(pygame.sprite.DirtySprite):
 
     def load(self, png_path):
         plot_image = pygame.image.load(png_path)
-        inverse = pygame.Surface(plot_image.get_rect().size, pygame.SRCALPHA)
-        inverse.fill((0xff, 0xff, 0xff, 0xff))
-        inverse.blit(plot_image, (0, 0), None, pygame.BLEND_RGB_SUB)
-        self.image.blit(inverse, (0, 0))
+        self.image.blit(plot_image, (0, 0))
         self.dirty = 1
 
 pygame.init()
@@ -331,8 +328,9 @@ info = pygame.display.Info()
 g_width, g_height = info.current_w, info.current_h
 
 if sys.platform == 'darwin':
-    g_width  = int(0.9 * g_width)
-    g_height = int(0.9 * g_height)
+    scale = 0.95
+    g_width  = int(scale * g_width)
+    g_height = int(scale * g_height)
 
 g_font_size = int(g_width / 36)
 
