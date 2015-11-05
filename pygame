@@ -69,6 +69,9 @@ import time
 
 
 class DataSource():
+    def time(self):
+        pass
+
     def has_changed(self):
         pass
 
@@ -80,6 +83,9 @@ class SQLiteDataSource(DataSource):
     def __init__(db_path):
         self.db_path = db_path
 
+    def time(self):
+        pass
+
     def has_changed(self):
         pass
 
@@ -88,47 +94,39 @@ class SQLiteDataSource(DataSource):
 
 
 class MockDataSource(DataSource):
-    # f(x) = ax + b
-    class Model():
-        def __init__(self, a, b):
-            self.a = a
-            self.b = b
-            self.rng = random.Random(a * b)
-
-        def f(self, x):
-            y = self.a * x + self.b
-            j = self.rng.random() * self.b * 0.05
-            return(y + j)
-
-    update_interval = 3
+    update_interval = 10
 
     def __init__(self):
         self.epoch = time.time()
         self.t0 = 0
         self.rng = random.Random(42)
         self.lock = threading.Lock()
-        self.food_model = self.Model(50.0/60,  20.0)
-        self.oven_model = self.Model( 5.0/60, 175.0)
         self.food_data = []
         self.oven_data = []
 
+    def time(self):
+        actual_duration = time.time() - self.epoch
+        return(self.epoch + (10 * actual_duration))
+
     def has_changed(self):
-        t1 = time.time() - self.epoch
+        t1 = self.time() - self.epoch
         dt = t1 - self.t0
         if dt < self.update_interval:
             return False
         with self.lock:
             while self.t0 < (t1 - self.update_interval):
                 self.t0 += self.update_interval
-                self.food_data.append((self.t0, self.food_model.f(self.t0)))
-                self.oven_data.append((self.t0, self.oven_model.f(self.t0)))
+                oven_t = 175.0
+                food_t = 20 + (0.3 * t1)
+                self.food_data.append((self.t0, food_t))
+                self.oven_data.append((self.t0, oven_t))
         return True
 
     def fetch(self):
         with self.lock:
             food = self.food_data[:]
             oven = self.oven_data[:]
-        return (self.epoch, food, oven)
+        return (self.epoch, self.time(), food, oven)
 
 
 class Plotter():
@@ -143,7 +141,7 @@ class Plotter():
             suffix=suffix
         )
 
-    def plot(self, epoch, food_data, oven_data):
+    def plot(self, epoch, now, food_data, oven_data):
         self._write_data(self.food_table.name, food_data)
         self._write_data(self.oven_table.name, oven_data)
         png = self._tf('plot', 'png')
@@ -151,6 +149,7 @@ class Plotter():
         command = [
             'Rscript', 'plot.R',
             epoch,
+            now,
             self.food_table.name,
             self.oven_table.name,
             png.name,
@@ -186,9 +185,10 @@ class Color():
 #
 
 class WallClock(pygame.sprite.DirtySprite):
-    def __init__(self, font, format='%Y.%m.%d %H:%M:%S'):
+    def __init__(self, time_fn, font, format='%Y.%m.%d %H:%M:%S'):
         pygame.sprite.DirtySprite.__init__(self)
 
+        self.time_fn = time_fn
         self.font = font
         self.format = format
         self.last = None
@@ -198,11 +198,11 @@ class WallClock(pygame.sprite.DirtySprite):
         self.rect = self.image.get_rect()
 
     def update(self):
-        now = int(time.time())
+        now = self.time_fn()
         if now == self.last:
             return
         self.last = now
-        text = self._text(time.strftime(self.format))
+        text = self._text(time.strftime(self.format, time.localtime(now)))
         self.image.fill(Color.black)
         self.image.blit(text, (0, 0))
         self.dirty = 1
@@ -336,6 +336,8 @@ g_font_size = int(g_width / 36)
 
 size = (g_width, g_height)
 
+data_source = MockDataSource()
+
 pygame.mouse.set_visible(False)
 
 clock = pygame.time.Clock()
@@ -347,7 +349,7 @@ background.fill(Color.black)
 
 font = pygame.font.SysFont('Eurostile', g_font_size)
 
-wall_clock = WallClock(font)
+wall_clock = WallClock(data_source.time, font)
 wall_clock.rect.topleft = (10, 10)
 
 food_temperature = TemperatureReading(font, 'food')
@@ -368,7 +370,6 @@ plot_pane = PlotPane((
 plot_pane.rect.top = countdown_bar.rect.bottom + 10
 plot_pane.rect.left = 10
 
-data_source = MockDataSource()
 plotter = Plotter((plot_pane.rect.width, plot_pane.rect.height))
 
 allsprites = pygame.sprite.LayeredDirty((
@@ -393,10 +394,15 @@ class PlotWorker(threading.Thread):
         while self.running:
             epoch = None
             while not self.q.empty():
-                (epoch, food_data, oven_data) = self.q.get()
+                (epoch, now, food_data, oven_data) = self.q.get()
             if epoch is None:
                 continue
-            png_tempfile = self.plotter.plot(epoch, food_data, oven_data)
+            png_tempfile = self.plotter.plot(
+                epoch,
+                now,
+                food_data,
+                oven_data
+            )
             if png_tempfile is None:
                 continue
             event = pygame.event.Event(
@@ -404,6 +410,7 @@ class PlotWorker(threading.Thread):
                 png_tempfile=png_tempfile,  # pass to avoid garbage collection
                 png_path=png_tempfile.name,
                 epoch=epoch,
+                now=now,
                 food_data=food_data,
                 oven_data=oven_data,
             )

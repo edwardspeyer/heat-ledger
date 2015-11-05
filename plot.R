@@ -10,11 +10,12 @@ Model_Window_Size <- 300
 args <- commandArgs(trailingOnly = TRUE)
 
 epoch       <- as.numeric(args[1])
-food        <- read.table(args[2], header=TRUE)
-oven        <- read.table(args[3], header=TRUE)
-png_path    <-            args[4]
-width       <- as.numeric(args[5])
-height      <- as.numeric(args[6])
+now         <- as.numeric(args[2])
+food        <- read.table(args[3], header=TRUE)
+oven        <- read.table(args[4], header=TRUE)
+png_path    <-            args[5]
+width       <- as.numeric(args[6])
+height      <- as.numeric(args[7])
 
 png(
     png_path,
@@ -72,7 +73,7 @@ for (target in Targets) {
     text(0, target, label, pos=4, col='gray')
 }
 
-t2 <- Sys.time() - epoch
+t2 <- now - epoch
 t1 <- t2 - Model_Window_Size
 
 recent <- food[food$time > t1 && food$time < t2,]
