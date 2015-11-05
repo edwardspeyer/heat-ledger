@@ -61,6 +61,7 @@ import pygame
 import queue
 import random
 import signal
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -75,22 +76,60 @@ class DataSource():
     def has_changed(self):
         pass
 
-    def get_data(self):
+    def fetch(self):
         pass
 
 
 class SQLiteDataSource(DataSource):
+    NORMAL_GAP_BETWEEN_COOKS = 3600
+
     def __init__(db_path):
         self.db_path = db_path
+        self.con = sqlite3.connect(db_path)
+        yesterday = self.time() - 86400
+        self.mtimes = (yesterday, yesterday)
+        self.food = []
+        self.oven = []
 
     def time(self):
-        pass
+        return time.time()
 
     def has_changed(self):
-        pass
+        vf = self._read(2, self.food)
+        vo = self._read(1, self.oven)
+        return(vf || vo)
 
-    def get_data(self):
-        pass
+    def fetch(self):
+        res = (self.food[:], self.oven[:])
+        self.food = []
+        self.oven = []
+        return res
+
+    def _read(self, sensor, buf):
+        mtime = buf[-1][0]
+        now = self.time()
+        template = (
+            'SELECT epoch, mC FROM sensor_{} '
+            'WHERE epoch > {} AND epoch <= {} '
+            'AND mC > -300000 '
+            'ORDER BY epoch ASC'
+        )
+        sql = template.format(sensor, mtime, now)
+        cur = self.con.cursor()
+        cur.execute(sql)
+        buf.extend(cur.fetchall())
+        if len(buf) >= 2:
+            start = 0
+            for index in range(1, len(buf) - 1):
+                t0 = buf[index - 1][0]
+                t1 = buf[index    ][0]
+                if (t1 - t0) > self.NORMAL_GAP_BETWEEN_COOKS:
+                    start = index
+            if start != 0:
+                buf = buf[start:]
+        con.close()
+        return buf
+
 
 
 class MockDataSource(DataSource):
