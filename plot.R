@@ -9,13 +9,12 @@ Model_Window_Size <- 300
 
 args <- commandArgs(trailingOnly = TRUE)
 
-epoch       <- as.numeric(args[1])
-now         <- as.numeric(args[2])
-food        <- read.table(args[3], header=TRUE)
-oven        <- read.table(args[4], header=TRUE)
-png_path    <-            args[5]
-width       <- as.numeric(args[6])
-height      <- as.numeric(args[7])
+now         <- as.numeric(args[1])
+food        <- read.table(args[2], header=TRUE)
+oven        <- read.table(args[3], header=TRUE)
+png_path    <-            args[4]
+width       <- as.numeric(args[5])
+height      <- as.numeric(args[6])
 
 png(
     png_path,
@@ -39,12 +38,12 @@ par(
     )
 )
 
-recent_t2 <- now - epoch
-recent_t1 <- recent_t2 - Model_Window_Size
+epoch <- min(c(food$time, oven$time))
 
-recent <- food
-recent <- recent[recent$time > recent_t1,]
-recent <- recent[recent$time < recent_t2,]
+food$time <- food$time - epoch
+oven$time <- oven$time - epoch
+
+recent <- food[food$time > (now - epoch - Model_Window_Size),]
 
 done <- data.frame()
 if (nrow(recent) >= 3) {

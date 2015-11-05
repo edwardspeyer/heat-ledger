@@ -132,15 +132,14 @@ class MockDataSource(DataSource):
 
     def __init__(self):
         self.epoch = time.time()
-        self.t0 = 0
+        self.t0 = self.epoch
 
     def time(self):
         actual_duration = time.time() - self.epoch
         return(self.epoch + (self.SPEED_UP * actual_duration))
 
     def fetch_new(self):
-        now = self.time()
-        t1 = now - self.epoch
+        t1 = self.time()
         dt = t1 - self.t0
         if dt < self.UPDATE_INTERVAL:
             return None
@@ -148,10 +147,10 @@ class MockDataSource(DataSource):
         while self.t0 < (t1 - self.UPDATE_INTERVAL):
             self.t0 += self.UPDATE_INTERVAL
             oven_t = 175.0
-            food_t = 20 + (50/3600 * t1)
+            food_t = 20 + (50/3600 * (self.t0 - self.epoch))
             food.append((self.t0, food_t))
             oven.append((self.t0, oven_t))
-        return(self.epoch, now, food, oven)
+        return(self.t0, food, oven)
 
 
 class DataBuffer(DataSource):
@@ -166,10 +165,10 @@ class DataBuffer(DataSource):
         new = self.data_source.fetch_new()
         if new is None: 
             return None
-        (epoch, now, food, oven) = new
+        (now, food, oven) = new
         self._add(self.food, food)
         self._add(self.oven, oven)
-        return(epoch, now, self.food, self.oven)
+        return(now, self.food, self.oven)
 
     def _add(self, ar0, ar1):
         for pair1 in ar1:
@@ -193,14 +192,13 @@ class Plotter():
             suffix=suffix
         )
 
-    def plot(self, epoch, now, food_data, oven_data):
+    def plot(self, now, food_data, oven_data):
         self._write_data(self.food_table.name, food_data)
         self._write_data(self.oven_table.name, oven_data)
         png = self._tf('plot', 'png')
         (width, height) = self.size
         command = [
             'Rscript', 'plot.R',
-            epoch,
             now,
             self.food_table.name,
             self.oven_table.name,
@@ -442,24 +440,18 @@ class PlotWorker(threading.Thread):
     def run(self):
         self.running = True
         while self.running:
-            epoch = None
+            now = None
             while not self.q.empty():
-                (epoch, now, food_data, oven_data) = self.q.get()
-            if epoch is None:
+                (now, food_data, oven_data) = self.q.get()
+            if now is None:
                 continue
-            png_tempfile = self.plotter.plot(
-                epoch,
-                now,
-                food_data,
-                oven_data
-            )
+            png_tempfile = self.plotter.plot(now, food_data, oven_data)
             if png_tempfile is None:
                 continue
             event = pygame.event.Event(
                 self.PLOTREADY,
                 png_tempfile=png_tempfile,  # pass to avoid garbage collection
                 png_path=png_tempfile.name,
-                epoch=epoch,
                 now=now,
                 food_data=food_data,
                 oven_data=oven_data,
