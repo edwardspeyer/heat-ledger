@@ -368,27 +368,6 @@ class PlotPane(pygame.sprite.DirtySprite):
         self.dirty = 1
 
 
-class Foo():
-    def __init__(self):
-        self.seq = 0
-        self._time = 0
-        self.rng = random.Random(123)
-
-    def time(self):
-        t = self._time
-        self._time += 1
-        return t
-
-    def fetch(self):
-        if self.seq % 5 == 0:
-            self._time += 5000
-        food, oven = [], []
-        t = self.time()
-        food.append((t, self.seq))
-        oven.append((t, self.seq))
-        self.seq += 1
-        return(food, oven)
-
 pygame.init()
 pygame.display.init()
 
