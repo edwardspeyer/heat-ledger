@@ -389,7 +389,10 @@ data_buffer = DataBuffer(data_source)
 pygame.mouse.set_visible(False)
 
 clock = pygame.time.Clock()
-screen = pygame.display.set_mode(size, 0, 32)
+
+print('setting mode to {}...'.format(size))
+screen = pygame.display.set_mode(size)
+print('mode is set')
 
 background = pygame.Surface(screen.get_size())
 background = background.convert()
