@@ -484,10 +484,12 @@ while is_run:
             is_run = False
         elif event.type == PlotWorker.PLOTREADY:
             plot_pane.load(event.png_path)
-            food_t = event.food_data[-1][1]
-            oven_t = event.oven_data[-1][1]
-            food_temperature.set(food_t)
-            oven_temperature.set(oven_t)
+            if len(event.food_data) > 0:
+                food_t = event.food_data[-1][1]
+                food_temperature.set(food_t)
+            if len(event.oven_data) > 0:
+                oven_t = event.oven_data[-1][1]
+                oven_temperature.set(oven_t)
             countdown_bar.reset()
         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
