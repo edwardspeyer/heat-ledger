@@ -39,18 +39,38 @@ par(
     )
 )
 
+recent_t2 <- now - epoch
+recent_t1 <- recent_t2 - Model_Window_Size
+
+recent <- food
+recent <- recent[recent$time > recent_t1,]
+recent <- recent[recent$time < recent_t2,]
+
+done <- data.frame()
+if (nrow(recent) >= 3) {
+    model <- lm(recent$temperature ~ recent$time)
+    a <- model$coefficients[[2]]
+    b <- model$coefficients[[1]]
+    done <- data.frame(
+      temperature=Targets,
+      time=(Targets - b) / a  # (T = at + b) so (t = (T - b)/a)
+    )
+}
+
 temperature_range <- range(c(
     0,
     150,
     food$temperature,
-    oven$temperature
+    oven$temperature,
+    done$temperature
 ))
 
 time_range <- range(c(
     0,
     300,
     food$time,
-    oven$time
+    oven$time,
+    done$time  # TODO quantize to avoid xlim jitter as model improves
 ))
 
 plot(
@@ -59,45 +79,38 @@ plot(
     xlab='',
     ylab='',
     xlim=time_range,
-    ylim=temperature_range
+    ylim=temperature_range,
+    lwd=4,
 )
 
 points(
     oven$temperature ~ oven$time,
-    type="l"
+    type="l",
+    lwd=4,
 )
-    
+
 for (target in Targets) {
     abline(target, 0, lt=3, col=8)
     label <- paste(target, "\u00B0C", sep="")
     text(0, target, label, pos=4, col='gray')
 }
 
-t2 <- now - epoch
-t1 <- t2 - Model_Window_Size
-
-recent <- food
-recent <- recent[recent$time > t1,]
-recent <- recent[recent$time < t2,]
-
-if (nrow(recent) >= 3) {
-    model <- lm(recent$temperature ~ recent$time)
-    # T = at + b  =>  t = (T - b)/a
-    a <- model$coefficients[[2]]
-    b <- model$coefficients[[1]]
-    for (target in Targets) {
-        done_time <- (target - b) / a
-        abline(v=done_time, lt=3, col=8)
+if (exists("model")) {
+    abline(model, lt=2, col='yellow')
+    null <- apply(done, 1, function(row) {
+        target <- row[[1]]
+        time   <- row[[2]]
+        abline(v=time, lt=3, col=8)
         label <- strftime(
             as.POSIXct(
-                epoch + done_time,
+                epoch + time,
                 origin="1970-01-01"
             ),
             '%H:%M'
         )
-        text(done_time, target, label, pos=2)
-        points(done_time, target, type="p", lwd=4, col="red")
-    }
+        text(time, target, label, pos=2)
+        points(time, target, type="p", lwd=4, col="red")
+    })
 }
 
 graphics.off()
