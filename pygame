@@ -113,7 +113,7 @@ class SQLiteDataSource(DataSource):
 
     def _read(self, sensor, time_from, time_to):
         sql = (
-            'SELECT epoch, mC FROM sensor_{} '
+            'SELECT epoch, mC/1000.0 FROM sensor_{} '
             'WHERE epoch > {} AND epoch <= {} '
             'AND mC > -300000 '
             'ORDER BY epoch ASC'
