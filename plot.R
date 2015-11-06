@@ -68,7 +68,7 @@ temperature_range <- range(c(
     done$temperature
 ))
 
-time_range <- range(c(
+time_max <- max(c(
     0,
     300,
     food$time,
@@ -81,10 +81,33 @@ plot(
     type="l",
     xlab='',
     ylab='',
-    xlim=time_range,
+    xlim=c(0, time_max),
     ylim=temperature_range,
     lwd=4,
+    xaxt='n',
 )
+
+time_axis_units <- 60 * c(1, 5, 10, 15, 30)
+time_axis_by <- time_axis_units[time_max / time_axis_units <= 12][1]
+if (is.na(time_axis_by)) {
+    # e.g. 40 hours cook => tick every 4 hours
+    time_axis_by <- 3600 * ceiling((time_max / 12) / 3600)
+}
+time_axis_at <- seq(from=0, to=time_max, by=time_axis_by)
+time_axis_labels <- lapply(time_axis_at, function(t) {
+    mm <- floor((t / 60) %% 60)
+    hh <- floor(t / 3600)
+    if (hh == 0) {
+        return(sprintf('%dm', mm))
+    } else {
+        if (time_axis_by >= 3600) {
+            return(sprintf('%dh', hh))
+        } else {
+            return(sprintf('%dh%02dm', hh, mm))
+        }
+    }
+})
+axis(1, at=time_axis_at, labels=time_axis_labels)
 
 points(
     oven$temperature ~ oven$time,
