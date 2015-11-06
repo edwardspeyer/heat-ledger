@@ -363,6 +363,36 @@ class PlotPane(pygame.sprite.DirtySprite):
         self.dirty = 1
 
 
+class PlotWorker(threading.Thread):
+    PLOTREADY = pygame.USEREVENT + 1
+
+    def __init__(self, plotter):
+        threading.Thread.__init__(self)
+        self.plotter = plotter
+        self.q = queue.Queue()
+
+    def run(self):
+        self.running = True
+        while self.running:
+            now = None
+            while not self.q.empty():
+                (now, food_data, oven_data) = self.q.get()
+            if now is None:
+                continue
+            png_tempfile = self.plotter.plot(now, food_data, oven_data)
+            if png_tempfile is None:
+                continue
+            event = pygame.event.Event(
+                self.PLOTREADY,
+                png_tempfile=png_tempfile,  # pass to avoid garbage collection
+                png_path=png_tempfile.name,
+                now=now,
+                food_data=food_data,
+                oven_data=oven_data,
+            )
+            pygame.event.post(event)
+
+
 parser = optparse.OptionParser()
 
 parser.add_option(
@@ -474,35 +504,6 @@ allsprites = pygame.sprite.LayeredDirty((
     plot_pane,
 ))
 allsprites.clear(screen, background)
-
-class PlotWorker(threading.Thread):
-    PLOTREADY = pygame.USEREVENT + 1
-
-    def __init__(self, plotter):
-        threading.Thread.__init__(self)
-        self.plotter = plotter
-        self.q = queue.Queue()
-
-    def run(self):
-        self.running = True
-        while self.running:
-            now = None
-            while not self.q.empty():
-                (now, food_data, oven_data) = self.q.get()
-            if now is None:
-                continue
-            png_tempfile = self.plotter.plot(now, food_data, oven_data)
-            if png_tempfile is None:
-                continue
-            event = pygame.event.Event(
-                self.PLOTREADY,
-                png_tempfile=png_tempfile,  # pass to avoid garbage collection
-                png_path=png_tempfile.name,
-                now=now,
-                food_data=food_data,
-                oven_data=oven_data,
-            )
-            pygame.event.post(event)
 
 pw = PlotWorker(plotter)
 pw.start()
