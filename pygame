@@ -364,25 +364,51 @@ class PlotPane(pygame.sprite.DirtySprite):
 
 
 parser = optparse.OptionParser()
-parser.add_option('--test', action='store_true')
+
 parser.add_option(
-    '--sqlite-path',
+    '--test',
+    action='store_true',
+    help="test mode, running with a mock data source",
+)
+
+parser.add_option(
+    '--sqlite',
     type='string',
     default='/var/lib/bluethermd/sqlite',
+    help="path to your bluetherm daemon's sqlite database",
 )
-parser.add_option('--time-start', type='string', default=None)
-parser.add_option('--time-speed', type='int',    default=1)
+
+parser.add_option(
+    '--start',
+    type='string',
+    default=None,
+    help="fake clock time, when re-playing data",
+)
+
+parser.add_option(
+    '--speedup',
+    type='int',
+    default=1,
+    help="fake clock speed, when re-playing data",
+)
+
 (options, args) = parser.parse_args()
 
-clock = Clock(
-    options.time_speed,
-    time.mktime(time.strptime(options.time_start, '%Y-%m-%dT%H:%M:%S'))
-)
+clock_start = None
+if options.start:
+    try:
+        struct = time.strptime(options.start, '%Y-%m-%dT%H:%M:%S')
+        clock_start = time.mktime(struct)
+    except ValueError as ex:
+        parser.error(ex)
+clock = Clock(options.speedup, clock_start)
 
 if options.test:
     data_source = MockDataSource(clock)
 else:
-    data_source = SQLiteDataSource(clock, options.sqlite_path)
+    if not os.path.exists(options.sqlite):
+        parser.error('sqlite database not found: ' + options.sqlite)
+    data_source = SQLiteDataSource(clock, options.sqlite)
 
 pygame.init()
 pygame.display.init()
