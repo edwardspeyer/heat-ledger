@@ -345,7 +345,7 @@ class Game_Sprite_CountdownBar(pygame.sprite.DirtySprite):
         if dur_ms == self.last_dur_ms:
             return
         self.last_dur_ms = dur_ms
-        if dur_ms < self.TIMEOUT:
+        if dur_ms <= self.TIMEOUT:
             w = self.rect.width
             bar = pygame.Rect(
                 w - (w * dur_ms // self.TIMEOUT),
