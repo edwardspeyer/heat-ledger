@@ -481,6 +481,10 @@ class Game_Sprite_TemperatureReading(pygame.sprite.DirtySprite):
 
 
 class Game_Sprite_CountdownBar(pygame.sprite.DirtySprite):
+    # TODO this should use the fake clock, not the pygame clock, and it should
+    # also try to give you information about time since last reading seen
+    #
+    # For example see the log starting 2015-11-06 17:50
     TIMEOUT = 10000 # ms
 
     def __init__(self, size):
