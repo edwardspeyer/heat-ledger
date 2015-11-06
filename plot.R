@@ -6,6 +6,7 @@ Targets <- c(
 )
 
 Model_Window_Size <- 300
+Done_Future_Cutoff <- 2 * 3600
 
 args <- commandArgs(trailingOnly = TRUE)
 
@@ -39,13 +40,13 @@ par(
 )
 
 epoch <- min(c(food$time, oven$time))
+now_t <- now - epoch
 
 food$time <- food$time - epoch
 oven$time <- oven$time - epoch
 
-recent <- food[food$time > (now - epoch - Model_Window_Size),]
+recent <- food[food$time > (now_t - Model_Window_Size),]
 
-done <- data.frame()
 if (nrow(recent) >= 3) {
     model <- lm(recent$temperature ~ recent$time)
     a <- model$coefficients[[2]]
@@ -54,6 +55,9 @@ if (nrow(recent) >= 3) {
       temperature=Targets,
       time=(Targets - b) / a  # (T = at + b) so (t = (T - b)/a)
     )
+    done <- done[done$time > 0,]
+    done <- done[done$time >= now_t,]
+    done <- done[done$time < (now_t + Done_Future_Cutoff),]
 }
 
 temperature_range <- range(c(
@@ -96,7 +100,10 @@ for (target in Targets) {
 
 if (exists("model")) {
     abline(model, lt=2, col='yellow')
-    null <- apply(done, 1, function(row) {
+}
+
+if (exists("done") && nrow(done) > 0) {
+    invisible(apply(done, 1, function(row) {
         target <- row[[1]]
         time   <- row[[2]]
         abline(v=time, lt=3, col=8)
@@ -109,7 +116,7 @@ if (exists("model")) {
         )
         text(time, target, label, pos=2)
         points(time, target, type="p", lwd=4, col="red")
-    })
+    }))
 }
 
 graphics.off()
