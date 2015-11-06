@@ -105,11 +105,17 @@ class Data_Temperatures_SQLite(Data_Temperatures):
         now = self.clock.time()
         new_food = self._read(2, self.food_mtime, now)
         new_oven = self._read(1, self.oven_mtime, now)
+        has_new_data = False
         if len(new_food) > 0:
+            has_new_data = True
             self.food_mtime = new_food[-1][0]
         if len(new_oven) > 0:
+            has_new_data = True
             self.oven_mtime = new_oven[-1][0]
-        return(now, new_food, new_oven)
+        if has_new_data:
+            return(now, new_food, new_oven)
+        else:
+            return None
 
     def _read(self, sensor, time_from, time_to):
         sql = (
