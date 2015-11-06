@@ -190,8 +190,8 @@ class R_Plotter():
 
     def _tf(self, prefix, suffix):
         return tempfile.NamedTemporaryFile(
-            prefix='bluetherm-plotter-' + prefix,
-            suffix=suffix
+            prefix=('bluetherm-plotter-' + prefix + '.'),
+            suffix=('.' + suffix)
         )
 
     def plot(self, now, food_data, oven_data):
