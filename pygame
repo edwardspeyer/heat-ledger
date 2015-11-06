@@ -385,6 +385,8 @@ class Game_PlotWorker(threading.Thread):
                 (now, food_data, oven_data) = self.q.get()
             if now is None:
                 continue
+            if len(food_data) + len(oven_data) == 0:
+                continue
             png_tempfile = self.plotter.plot(now, food_data, oven_data)
             if png_tempfile is None:
                 continue
