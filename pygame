@@ -70,7 +70,7 @@ import threading
 import time
 
 
-class Clock():
+class Data_Time():
     def __init__(self, speed=1, start=None):
         self.real_start = time.time()
         if start is None:
@@ -84,7 +84,7 @@ class Clock():
         return(self.fake_start + (self.speed * dur))
 
 
-class DataSource():
+class Data_Temperatures():
     def time(self):
         pass
 
@@ -92,7 +92,7 @@ class DataSource():
         pass
 
 
-class SQLiteDataSource(DataSource):
+class Data_Temperatures_SQLite(Data_Temperatures):
     def __init__(self, clock, db_path):
         self.clock = clock
         self.db_path = db_path
@@ -125,7 +125,7 @@ class SQLiteDataSource(DataSource):
         return res
 
 
-class MockDataSource(DataSource):
+class Data_Temperatures_Mock(Data_Temperatures):
     UPDATE_INTERVAL = 10
     SPEED_UP = 60
 
@@ -149,7 +149,7 @@ class MockDataSource(DataSource):
         return(self.t0, food, oven)
 
 
-class DataBuffer(DataSource):
+class Data_Buffer():
     MAX_GAP = 3600
 
     def __init__(self, data_source):
@@ -176,7 +176,7 @@ class DataBuffer(DataSource):
             ar0.append(pair1)
 
 
-class Plotter():
+class R_Plotter():
     def __init__(self, size):
         self.size = size
         self.food_table = self._tf('food', 'table')
@@ -219,13 +219,13 @@ class Plotter():
         f.close()
 
 
-class Color():
+class Game_Color():
     black = (0x00, 0x00, 0x00)
     gray  = (0x80, 0x80, 0x80)
     white = (0xff, 0xff, 0xff)
 
 
-class WallClock(pygame.sprite.DirtySprite):
+class Game_Sprite_WallClock(pygame.sprite.DirtySprite):
     def __init__(self, time_fn, font, format='%Y.%m.%d %H:%M:%S'):
         pygame.sprite.DirtySprite.__init__(self)
 
@@ -244,15 +244,15 @@ class WallClock(pygame.sprite.DirtySprite):
             return
         self.last = now
         text = self._text(time.strftime(self.format, time.localtime(now)))
-        self.image.fill(Color.black)
+        self.image.fill(Game_Color.black)
         self.image.blit(text, (0, 0))
         self.dirty = 1
 
     def _text(self, clock_string):
-        return self.font.render(clock_string, 1, Color.gray)
+        return self.font.render(clock_string, 1, Game_Color.gray)
 
 
-class TemperatureReading(pygame.sprite.DirtySprite):
+class Game_Sprite_TemperatureReading(pygame.sprite.DirtySprite):
     LABEL_MARGIN_RIGHT = 12
     UNSET = -300.0
     RATE = 20
@@ -262,7 +262,7 @@ class TemperatureReading(pygame.sprite.DirtySprite):
 
         self.font = font
         self.label = label
-        self.label_text = self.font.render(label, 1, Color.gray)
+        self.label_text = self.font.render(label, 1, Game_Color.gray)
         self.label_width = self.label_text.get_rect().width
 
         self.t0 = None
@@ -270,7 +270,7 @@ class TemperatureReading(pygame.sprite.DirtySprite):
         self.pp = 100
         self.is_first = True
 
-        dummy_value_text = self._build_value_text(999.0, Color.white)
+        dummy_value_text = self._build_value_text(999.0, Game_Color.white)
         height = font.get_linesize() # Approx. ascent + descent + 1
         width = (
             self.label_width +
@@ -294,7 +294,7 @@ class TemperatureReading(pygame.sprite.DirtySprite):
         elif self.pp == 100:
             return
 
-        self.image.fill(Color.black)
+        self.image.fill(Game_Color.black)
         self.image.blit(self.label_text, (0, 0))
 
         self.pp = min(100, self.pp + self.RATE)
@@ -319,7 +319,7 @@ class TemperatureReading(pygame.sprite.DirtySprite):
             return self.font.render(t_str, 1, color)
 
 
-class CountdownBar(pygame.sprite.DirtySprite):
+class Game_Sprite_CountdownBar(pygame.sprite.DirtySprite):
     TIMEOUT = 10000 # ms
 
     def __init__(self, size):
@@ -329,7 +329,7 @@ class CountdownBar(pygame.sprite.DirtySprite):
         self.reset()
 
     def reset(self):
-        self.image.fill(Color.gray)
+        self.image.fill(Game_Color.gray)
         self.start_ms = pygame.time.get_ticks()
         self.last_dur_ms = None
 
@@ -347,11 +347,11 @@ class CountdownBar(pygame.sprite.DirtySprite):
                 w,
                 self.rect.height
             )
-            self.image.fill(Color.black, bar)
+            self.image.fill(Game_Color.black, bar)
             self.dirty = 1
 
 
-class PlotPane(pygame.sprite.DirtySprite):
+class Game_Sprite_PlotPane(pygame.sprite.DirtySprite):
     def __init__(self, size):
         pygame.sprite.DirtySprite.__init__(self)
         self.image = pygame.Surface(size)
@@ -363,7 +363,7 @@ class PlotPane(pygame.sprite.DirtySprite):
         self.dirty = 1
 
 
-class PlotWorker(threading.Thread):
+class Game_PlotWorker(threading.Thread):
     PLOTREADY = pygame.USEREVENT + 1
 
     def __init__(self, plotter):
@@ -431,14 +431,17 @@ if options.start:
         clock_start = time.mktime(struct)
     except ValueError as ex:
         parser.error(ex)
-clock = Clock(options.speedup, clock_start)
+clock = Data_Time(options.speedup, clock_start)
 
 if options.test:
-    data_source = MockDataSource(clock)
+    data_source = Data_Temperatures_Mock(clock)
 else:
     if not os.path.exists(options.sqlite):
         parser.error('sqlite database not found: ' + options.sqlite)
-    data_source = SQLiteDataSource(clock, options.sqlite)
+    data_source = Data_Temperatures_SQLite(clock, options.sqlite)
+
+data_buffer = Data_Buffer(data_source)
+
 
 pygame.init()
 pygame.display.init()
@@ -455,8 +458,6 @@ g_font_size = int(g_width / 36)
 
 size = (g_width, g_height)
 
-data_buffer = DataBuffer(data_source)
-
 pygame.mouse.set_visible(False)
 
 game_clock = pygame.time.Clock()
@@ -467,34 +468,34 @@ print('mode is set')
 
 background = pygame.Surface(screen.get_size())
 background = background.convert()
-background.fill(Color.black)
+background.fill(Game_Color.black)
 
 # The FreeType parts of pygame have better kerning, but have a bug whereby the
 # baseline has jitter.
 font = pygame.font.SysFont('Eurostile', g_font_size)
 
-wall_clock = WallClock(clock.time, font)
+wall_clock = Game_Sprite_WallClock(clock.time, font)
 wall_clock.rect.topleft = (10, 10)
 
-food_temperature = TemperatureReading(font, 'food')
+food_temperature = Game_Sprite_TemperatureReading(font, 'food')
 food_temperature.rect.top = 10
 food_temperature.rect.right = g_width - 10
 
-oven_temperature = TemperatureReading(font, 'oven')
+oven_temperature = Game_Sprite_TemperatureReading(font, 'oven')
 oven_temperature.rect.top = 10
 oven_temperature.rect.right = food_temperature.rect.left - 50
 
-countdown_bar = CountdownBar((g_width, 3))
+countdown_bar = Game_Sprite_CountdownBar((g_width, 3))
 countdown_bar.rect.topleft = (0, wall_clock.rect.bottom + 10)
 
-plot_pane = PlotPane((
+plot_pane = Game_Sprite_PlotPane((
     g_width - (10 * 2),
     g_height - countdown_bar.rect.bottom - 20
 ))
 plot_pane.rect.top = countdown_bar.rect.bottom + 10
 plot_pane.rect.left = 10
 
-plotter = Plotter((plot_pane.rect.width, plot_pane.rect.height))
+plotter = R_Plotter((plot_pane.rect.width, plot_pane.rect.height))
 
 allsprites = pygame.sprite.LayeredDirty((
     wall_clock,
@@ -505,7 +506,7 @@ allsprites = pygame.sprite.LayeredDirty((
 ))
 allsprites.clear(screen, background)
 
-pw = PlotWorker(plotter)
+pw = Game_PlotWorker(plotter)
 pw.start()
 
 def quit():
@@ -535,7 +536,7 @@ while is_run:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             quit()
-        elif event.type == PlotWorker.PLOTREADY:
+        elif event.type == Game_PlotWorker.PLOTREADY:
             plot_pane.load(event.png_path)
             if len(event.food_data) > 0:
                 food_t = event.food_data[-1][1]
