@@ -70,6 +70,20 @@ import threading
 import time
 
 
+class Clock():
+    def __init__(self, speed=1, start=None):
+        self.real_start = time.time()
+        if start is None:
+            self.fake_start = self.real_start
+        else:
+            self.fake_start = start
+        self.speed = speed
+
+    def time(self):
+        dur = time.time() - self.real_start
+        return(self.fake_start + (self.speed * dur))
+
+
 class DataSource():
     def time(self):
         pass
@@ -79,65 +93,49 @@ class DataSource():
 
 
 class SQLiteDataSource(DataSource):
-    def __init__(self, db_path):
+    def __init__(self, clock, db_path):
+        self.clock = clock
         self.db_path = db_path
         self.con = sqlite3.connect(db_path)
-        yesterday = self.time() - 86400
+        yesterday = clock.time() - 86400
         self.food_mtime = yesterday
         self.oven_mtime = yesterday
 
-    def time(self):
-        return time.time()
-
     def fetch_new(self):
-        new_food = self._read(2, self.food_mtime)
+        now = self.clock.time()
+        new_food = self._read(2, self.food_mtime, now)
+        new_oven = self._read(1, self.oven_mtime, now)
         if len(new_food) > 0:
             self.food_mtime = new_food[-1][0]
-        new_oven = self._read(1, self.oven_mtime)
         if len(new_oven) > 0:
             self.oven_mtime = new_oven[-1][0]
-        return(new_food, new_oven)
+        return(now, new_food, new_oven)
 
-    def _read(self, sensor, since):
-        mtime = buf[-1][0]
-        now = self.time()
-        template = (
+    def _read(self, sensor, time_from, time_to):
+        sql = (
             'SELECT epoch, mC FROM sensor_{} '
             'WHERE epoch > {} AND epoch <= {} '
             'AND mC > -300000 '
             'ORDER BY epoch ASC'
-        )
-        sql = template.format(sensor, mtime, now)
+        ).format(sensor, time_from, time_to)
         cur = self.con.cursor()
         cur.execute(sql)
-        buf.extend(cur.fetchall())
-        if len(buf) >= 2:
-            start = 0
-            for index in range(1, len(buf) - 1):
-                t0 = buf[index - 1][0]
-                t1 = buf[index    ][0]
-                if (t1 - t0) > self.NORMAL_GAP_BETWEEN_COOKS:
-                    start = index
-            if start != 0:
-                buf = buf[start:]
-        con.close()
-        return buf
+        res = cur.fetchall()
+        cur.close()
+        return res
 
 
 class MockDataSource(DataSource):
     UPDATE_INTERVAL = 10
     SPEED_UP = 60
 
-    def __init__(self):
-        self.epoch = time.time()
+    def __init__(self, clock):
+        self.clock = clock
+        self.epoch = clock.time()
         self.t0 = self.epoch
 
-    def time(self):
-        actual_duration = time.time() - self.epoch
-        return(self.epoch + (self.SPEED_UP * actual_duration))
-
     def fetch_new(self):
-        t1 = self.time()
+        t1 = self.clock.time()
         dt = t1 - self.t0
         if dt < self.UPDATE_INTERVAL:
             return None
@@ -225,6 +223,7 @@ class Color():
     black = (0x00, 0x00, 0x00)
     gray  = (0x80, 0x80, 0x80)
     white = (0xff, 0xff, 0xff)
+
 
 class WallClock(pygame.sprite.DirtySprite):
     def __init__(self, time_fn, font, format='%Y.%m.%d %H:%M:%S'):
@@ -365,19 +364,25 @@ class PlotPane(pygame.sprite.DirtySprite):
 
 
 parser = optparse.OptionParser()
-parser.add_option('--test')
+parser.add_option('--test', action='store_true')
 parser.add_option(
     '--sqlite-path',
     type='string',
     default='/var/lib/bluethermd/sqlite',
-    dest='sqlite_path',
 )
+parser.add_option('--time-start', type='string', default=None)
+parser.add_option('--time-speed', type='int',    default=1)
 (options, args) = parser.parse_args()
 
+clock = Clock(
+    options.time_speed,
+    time.mktime(time.strptime(options.time_start, '%Y-%m-%dT%H:%M:%S'))
+)
+
 if options.test:
-    data_source = MockDataSource()
+    data_source = MockDataSource(clock)
 else:
-    data_source = SQLiteDataSource(options.sqlite_path)
+    data_source = SQLiteDataSource(clock, options.sqlite_path)
 
 pygame.init()
 pygame.display.init()
@@ -398,7 +403,7 @@ data_buffer = DataBuffer(data_source)
 
 pygame.mouse.set_visible(False)
 
-clock = pygame.time.Clock()
+game_clock = pygame.time.Clock()
 screen = pygame.display.set_mode(size, 0, 32)
 
 background = pygame.Surface(screen.get_size())
@@ -409,7 +414,7 @@ background.fill(Color.black)
 # baseline has jitter.
 font = pygame.font.SysFont('Eurostile', g_font_size)
 
-wall_clock = WallClock(data_source.time, font)
+wall_clock = WallClock(clock.time, font)
 wall_clock.rect.topleft = (10, 10)
 
 food_temperature = TemperatureReading(font, 'food')
@@ -480,7 +485,7 @@ signal.signal(signal.SIGINT, signal_handler)
 
 is_run = True
 while is_run:
-    clock.tick(30)
+    game_clock.tick(30)
 
     new = data_buffer.fetch()
     if new:
