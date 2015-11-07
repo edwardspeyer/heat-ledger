@@ -246,6 +246,16 @@ class R_Plotter():
 
         done <- data.frame()
         if (nrow(recent) >= 3) {
+            # BUG/TODO: 2015-11-07T15:58 a linear model of meat temperature
+            # rise is clearly wrong as it projects done times higher than the
+            # oven model.
+            #
+            # Improvement (1) would be to correctly model this as logarithmic
+            # rather than linear.
+            #
+            # Improvement (2) would be to model this logarithmically with
+            # respect to oven temperature.
+            #
             model <- lm(recent$temperature ~ recent$time)
             a <- model$coefficients[[2]]
             b <- model$coefficients[[1]]
