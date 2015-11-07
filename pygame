@@ -165,11 +165,21 @@ class Data_Buffer():
 
     def fetch(self):
         new = self.data_source.fetch_new()
-        if new is None: 
+        if new is None:
             return None
         (now, food, oven) = new
-        self._add(self.food, food)
-        self._add(self.oven, oven)
+        self.food.extend(food)
+        self.oven.extend(oven)
+        times = [p[0] for p in (self.food + self.oven)]
+        if len(times) > 1:
+            times.sort()
+            time0 = start = min(times)
+            for time1 in times[1:]:
+                if time1 - time0 > self.MAX_GAP:
+                    start = time1
+                time0 = time1
+            self.food = [p for p in self.food if p[0] >= start]
+            self.oven = [p for p in self.oven if p[0] >= start]
         return(now, self.food, self.oven)
 
     def _add(self, ar0, ar1):
