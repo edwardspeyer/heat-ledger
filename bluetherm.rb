@@ -12,9 +12,10 @@ module BlueTherm
   #
   #   BlueTherm.poll("/dev/rfcomm0"){ |t1, t2| ... }
   #
-  def self.poll(device_path, options={})
+  def self.poll(device_path, interval, options={})
     begin
-      connection = BlueTherm::Connection.new(device_path, options)
+      connection =
+        BlueTherm::Connection.new(device_path, interval, options)
       fields = [
         BlueTherm::Field::SENSOR_1_TEMPERATURE,
         BlueTherm::Field::SENSOR_2_TEMPERATURE,
@@ -421,11 +422,10 @@ module BlueTherm
   #
   class Connection
     # == Options
-    # * +:poll_interval+ default is to poll every 10 seconds.
     # * +:log+ an IO that log messages are written to, default is +STDERR+.
-    def initialize(device_path, options={})
+    def initialize(device_path, poll_interval, options={})
       @device_path = device_path
-      @poll_interval = options[:poll_interval] || 10
+      @poll_interval = poll_interval
       @log = if options.key?(:log) then options[:log] else STDERR end
       @threads = []
       reopen!
@@ -598,14 +598,14 @@ if $0 == __FILE__
   @device_path = '/dev/rfcomm0'
   @is_print = true
   @sqlite_path = nil
-  @update_interval = 5
+  @poll_interval = 10
 
   OptionParser.new do |opts|
     opts.on('--device=PATH', 'Bluetooth serial device to connect to') \
       { |v| @device = v }
     opts.on('--update-interval=SECONDS',
-      "Log rate, default is #{@update_interval}") \
-      { |v| @update_interval = v.to_i }
+      "Log rate, default is #{@poll_interval}") \
+      { |v| @poll_interval = v.to_i }
     opts.on('--quiet', "Suppress terminal output") \
       { |v| @is_print = false }
 
@@ -658,11 +658,10 @@ if $0 == __FILE__
 
   options = {
     :log => @is_print ? STDERR : nil,
-    :update_interval => @update_interval,
   }
 
   begin
-    BlueTherm.poll(@device_path, options) do |t1, t2|
+    BlueTherm.poll(@device_path, @poll_interval, options) do |t1, t2|
       if @is_print
         puts "t1=#{t1} t2=#{t2}"
       end
