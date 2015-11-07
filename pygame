@@ -234,6 +234,7 @@ class R_Plotter():
 
         recent <- food[food$time > (now_t - Model_Window_Size),]
 
+        done <- data.frame()
         if (nrow(recent) >= 3) {
             model <- lm(recent$temperature ~ recent$time)
             a <- model$coefficients[[2]]
