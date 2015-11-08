@@ -62,7 +62,7 @@ ruby-on-rails project.
 #
 # Read temperatures in an infinite loop, every 10 seconds:
 #
-BlueTherm.poll("/dev/rfcomm0") do |t1, t2|
+BlueTherm.poll("/dev/rfcomm0", 10) do |t1, t2|
   puts t1.round(1) # e.g. 20.1
 end
 
