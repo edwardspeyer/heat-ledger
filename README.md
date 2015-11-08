@@ -133,8 +133,11 @@ and then install pygame itself:
 
 ## Linux Requirements
 
-You will want to compile pygame from source if you don't already have it
-(the stable `1.9.1release` of pygame is far too old.)
+You will want to compile pygame from source if you don't already have it,
+and you will want to compile the tip of the current development branch
+(the stable `1.9.1release` of pygame is far too old and buggy) which is available
+via Mercurial.
+
 The following will probably work for any Debian or Ubuntu type distribution.
 I installed my copy of pygame in `/opt`:
 
