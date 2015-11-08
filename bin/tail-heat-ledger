@@ -7,7 +7,7 @@ end
 
 require 'sqlite3'
 
-@conn = SQLite3::Database.new("/var/lib/bluethermd/sqlite")
+@conn = SQLite3::Database.new("/var/lib/heat-ledger/bluethermd.sqlite")
 
 def t(n)
   rows = @conn.execute "
