@@ -103,6 +103,7 @@ rescue SignalException => ex
   exit
 rescue Exception => ex
   STDERR.puts ex
+  STDERR.puts ex.backtrace
   STDERR.puts "sleeping before retrying, repeat ^C to quit..."
   sleep 10
   retry
