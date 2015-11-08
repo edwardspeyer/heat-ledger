@@ -9,29 +9,38 @@ The main components are:
 * `plot-heat-ledger` renders the database graphically in real-time.
 * `tail-heat-ledger` prints changes to the database on the command-line.
 * `bluethermd` is a daemon for logging temperatures from an ETI Thermoworks
-  [BlueTherm Duo](http://thermometer.co.uk/bluetooth-temperature-probes/1002-bluetooth-thermometer-bluetherm-duo.html).
-
-# Visualizing Data
-
-`plot-heat-ledger` will plot your most recent cooking session by looking for
-the most recent continuous set of temperature readings with no more than an hour's
-gap between readings.
+  [BlueTherm Duo](
+  http://thermometer.co.uk/bluetooth-temperature-probes/1002-bluetooth-thermometer-bluetherm-duo.html).
 
 ![plot-heat-ledger screenshot](/examples/plot.png?raw=true "plot-heat-ledger screenshot")
 
+# Visualizing Data
+
+`plot-heat-ledger` will plot your most recent cooking session.  It looks for
+the most recent continuous set of temperature readings that have no more than an hour's
+gap between readings.
+
 Guidelines and estimated cooking times are shown for roasting rare meat, rare and done poultry
-and tougher cuts with connective tissue.  The model is very simplistic -- currently it is
+and tougher smoking cuts (with connective tissue.)  The model is very simplistic -- currently it is
 simply a linear model of the last 5 minutes of data.
 
-The tool has a number of dependencies
-The UI is rendered with [pygame](https://www.pygame.org/) and [SDL](https://www.libsdl.org/)
-and works in (at least!) OS X and on the Linux framebuffer.
-The modelling and plotting is done by [R](https://www.r-project.org/).
+`plot-heat-ledger` has a few of dependencies:
+the modelling and plotting is done by [R](https://www.r-project.org/)
+and the UI itself is rendered with [pygame](https://www.pygame.org/)
+and [SDL](https://www.libsdl.org/).
+It works in (at least!) OS X and Linux, via the console framebuffer.
+
+Some example cooking sessions can be found in `examples/`
+which can be replayed by `plot-heat-ledger`:
+
+    $ bin/plot-heat-ledger --sqlite examples/roast-chicken.sqlite --speedup 120
+
+
 
 ## Dependencies for OS X
 
 You can install R by using the [R for Mac OS X](https://cran.r-project.org/bin/macosx/) installer.
-If you have [Homebrew](http://brew.sh/) then you can install SDL and python Mercurial support with:
+If you have [Homebrew](http://brew.sh/) then you can install SDL and python-Mercurial support with:
 
     $ brew install python3 hg sdl sdl_image sdl_mixer sdl_ttf portmidi
 
@@ -48,6 +57,7 @@ will want to compile pygame from source if you don't already have it
 I put mine in `/opt`:
 
     # apt-get install r-base
+    # apt-get install mercurial
     # apt-get install python3-dev libsdl1.2-dev libsdl-image1.2-dev libsdl-ttf2.0-dev
     # mkdir -p /opt/pygame/src
     # cd /opt/pygame/src
