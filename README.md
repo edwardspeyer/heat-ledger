@@ -109,6 +109,8 @@ the modelling and plotting is done by [R](https://www.r-project.org/)
 and the UI itself is rendered with [pygame](https://www.pygame.org/)
 and [SDL](https://www.libsdl.org/).
 It works in (at least!) OS X and Linux, via the console framebuffer.
+Finally, ensure that you have the *Eurostile* font installed on your system
+in order to optimize the sci-fi look of `plot-heat-ledger`'s output!
 
 Some example cooking sessions can be found in `examples/`
 which can be replayed by `plot-heat-ledger`:
@@ -151,6 +153,10 @@ You can then start the plotter as follows:
 
 Note in particular that modern Debian installations won't pass environment variables around,
 hence the call to `env`.
+
+Make sure you install Eurostile!:
+
+    $ cp ~/Downloads/Eurostile.ttf ~/.fonts/
 
 
 # License
