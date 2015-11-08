@@ -8,7 +8,7 @@ module BlueTherm
   #
   # A nice easy way to connect and poll for sensor temperatures.
   #
-  #   BlueTherm.poll("/dev/rfcomm0"){ |t1, t2| ... }
+  #   BlueTherm.poll("/dev/rfcomm0", 10){ |t1, t2| ... }
   #
   def self.poll(device_path, interval, options={})
     begin
