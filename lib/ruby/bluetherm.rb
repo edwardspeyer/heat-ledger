@@ -436,8 +436,12 @@ module BlueTherm
       end
       if @io
         log "closing device #{@device_path}..."
-        @io.close
-        log "io closed"
+        begin
+          @io.close
+          log "io closed"
+        rescue IOError => ex
+          log "io error caught: #{ex}"
+        end
       end
     end
 
