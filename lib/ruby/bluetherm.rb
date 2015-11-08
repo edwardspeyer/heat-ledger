@@ -22,7 +22,7 @@ module BlueTherm
         yield t1, t2
       end
     ensure
-      connection.close
+      connection.close unless connection.nil?
     end
   end
 
