@@ -79,6 +79,9 @@ class Data_Time():
             self.fake_start = start
         self.speed = speed
 
+    def set_start(self, start_time):
+        self.fake_start = float(start_time)
+
     def time(self):
         dur = time.time() - self.real_start
         return(self.fake_start + (self.speed * dur))
@@ -97,11 +100,14 @@ class Data_Temperatures_SQLite(Data_Temperatures):
         self.clock = clock
         self.db_path = db_path
         self.con = sqlite3.connect(db_path)
-        yesterday = clock.time() - 86400
-        self.food_mtime = yesterday
-        self.oven_mtime = yesterday
+        self.food_mtime = None
+        self.oven_mtime = None
 
     def fetch_new(self):
+        if self.food_mtime is None:
+            yesterday = clock.time() - 86400
+            self.food_mtime = yesterday
+            self.oven_mtime = yesterday
         now = self.clock.time()
         new_food = self._read(2, self.food_mtime, now)
         new_oven = self._read(1, self.oven_mtime, now)
@@ -116,6 +122,21 @@ class Data_Temperatures_SQLite(Data_Temperatures):
             return(now, new_food, new_oven)
         else:
             return None
+
+    def data_start_time(self):
+        def start_of(sensor):
+            template = 'SELECT epoch FROM sensor_{} ORDER BY epoch ASC LIMIT 1'
+            cur = self.con.cursor()
+            cur.execute(template.format(sensor))
+            res = cur.fetchone()
+            cur.close()
+            if res is None:
+                return None
+            return res[0]
+        times = [v for v in [start_of(1), start_of(2)] if v]
+        if len(times) == 0:
+            raise "no data found!"
+        return min(times)
 
     def _read(self, sensor, time_from, time_to):
         sql = (
@@ -627,6 +648,8 @@ else:
     if not os.path.exists(options.sqlite):
         parser.error('sqlite database not found: ' + options.sqlite)
     data_source = Data_Temperatures_SQLite(clock, options.sqlite)
+    if 'example' in options.sqlite and not options.start:
+        clock.set_start(data_source.data_start_time())
 
 data_buffer = Data_Buffer(data_source)
 
