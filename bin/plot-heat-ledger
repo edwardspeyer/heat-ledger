@@ -557,7 +557,7 @@ parser.add_option(
 parser.add_option(
     '--sqlite',
     type='string',
-    default='/var/lib/bluethermd/sqlite',
+    default='/var/lib/heat-ledger/bluethermd.sqlite',
     help="path to your bluetherm daemon's sqlite database",
 )
 

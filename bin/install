@@ -6,13 +6,25 @@ then
   exit 2
 fi
 
-dir=$(dirname "$0")
+dir=$(dirname $(dirname "$0"))
 
 if lsb_release -a 2>/dev/null | egrep -q '(Debian|Ubuntu)'
 then
   set -ex
-  install --mode 0755 "$dir/bluetherm.rb" /opt/bluetherm/bluethermd
-  cp "$dir/bluethermd.service" /etc/systemd/system/bluethermd.service
+
+  mkdir -p /opt/heat-ledger/bin
+  for script in 'bluethermd' 'plot-heat-ledger' 'tail-heat-ledger'
+  do
+    install --mode 0755 "$dir/bin/$script" /opt/heat-ledger/bin/
+  done
+
+  mkdir -p /opt/heat-ledger/lib/ruby
+  install --mode 0644 "$dir/lib/ruby/bluetherm.rb" \
+    /opt/heat-ledger/lib/ruby/
+
+  cp "$dir/lib/systemd/bluethermd.service" \
+    /etc/systemd/system/bluethermd.service
+
   systemctl daemon-reload
   systemctl restart bluethermd
   systemctl status bluethermd
