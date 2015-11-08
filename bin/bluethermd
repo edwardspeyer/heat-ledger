@@ -1,6 +1,12 @@
 #!/usr/bin/env ruby
 
-require 'bluetherm'
+repo_lib = File.dirname($0) + '/../lib/ruby/bluetherm.rb'
+if File.exist?(repo_lib)
+  load repo_lib
+else
+  require 'bluetherm'
+end
+
 require 'optparse'
 require 'pathname'
 
