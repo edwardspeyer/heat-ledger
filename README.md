@@ -23,7 +23,7 @@ accessing it via a Bluetooth serial connection.
 The [`bluethermd`](/bin/bluethermd) daemon polls the thermometer and logs readings
 to an SQLite database.
 
-In OS X, once you have paired with your BlueTherm, you can them launch the daemon by pointing
+In OS X, once you have paired with your BlueTherm, you can launch the daemon by pointing
 it at the thermometer's device in `/dev`:
 
     $ bluethermd --device /dev/cu.<BlueTherm-serial-number> --sqlite ~/.bluethermdb.sqlite
