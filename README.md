@@ -6,7 +6,7 @@ meat and poultry.
 
 The main components are:
 
-* `bluethermd`: logs temperatures from an ETI Thermoworks
+* `bluethermd`: logs temperatures from a
   [BlueTherm Duo](
   http://thermometer.co.uk/bluetooth-temperature-probes/1002-bluetooth-thermometer-bluetherm-duo.html)
   to Heat Ledger's database.
