@@ -1,6 +1,6 @@
 # Heat Ledger
 
-Heat Ledger is a suite of tools for logging temperatures and visualising their
+Heat Ledger is a toolkit for logging temperatures and visualising their
 change over time, specifically in the context of smoking, grilling and roasting
 meat and poultry.
 
@@ -13,6 +13,86 @@ The main components are:
   http://thermometer.co.uk/bluetooth-temperature-probes/1002-bluetooth-thermometer-bluetherm-duo.html).
 
 ![plot-heat-ledger screenshot](/examples/plot.png?raw=true "plot-heat-ledger screenshot")
+
+# Logging Data
+
+Heat Ledger is currently based around logging data from a BlueTherm Duo thermometer
+accessed via a Bluetooth serial connection.  The [`bluetherm.rb`](/lib/ruby/bluetherm.rb)
+library and [`bluethermd`](/bin/bluethermd) daemon poll the thermometer and log readings
+to an SQLite database.
+
+In OS X, once you have paired with your BlueTherm, you can them launch the daemon by pointing
+it at the thermometer's device in `/dev`:
+
+    $ bluethermd --device /dev/cu.<BlueTherm-serial-number> --sqlite ~/.bluethermdb.sqlite
+
+Linux pairing is of course very complicated.  I use Debian 8's `bluetoothctl`:
+
+    $ sudo bluetoothctl
+    [bluetooth]# agent on
+    [bluetooth]# default-agent
+    [bluetooth]# power on
+    [bluetooth]# scan on
+    [CHG] Device 00:06:66:55:55:55 1536555 BlueTherm
+    [bluetooth]# pair 00:06:66:55:55:55
+    [CHG] Device 00:06:66:72:77:C1 Connected: yes
+    [agent] Enter PIN code: 1234
+    [bluetooth]# connect 00:06:66:55:55:55   # maybe not needed? throws errors even when working!
+    [bluetooth]# ^D
+
+Once you have done the pairing you shouldn't have to pair again, even after rebooting.
+However, (re-)creating the serial device does need to be done after every reboot,
+and after the first pairing:
+
+    $ sudo rfcomm bind rfcomm0 00:06:66:55:55:55
+
+
+# I want to write my own logger!
+
+`bluetherm.rb` provides an API that should make
+it easy to interact with the BlueTherm Duo.  It is based on the protocol
+specification in Dan Elbert's
+[pi-b-q](https://github.com/DanElbert/pi-b-q/tree/master)
+ruby-on-rails project.
+
+```ruby
+#
+# Read temperatures in an infinite loop, every 10 seconds:
+#
+BlueTherm.poll("/dev/rfcomm0") do |t1, t2|
+  puts t1.round(1) # e.g. 20.1
+end
+
+#
+# Make your own connection and poll for custom fields (see BlueTherm::Field):
+#
+connection = BlueTherm::Connection.new("/dev/rfcomm0")
+fields = [
+  BlueTherm::Field::BATTERY_TEMPERATURE,
+  BlueTherm::Field::BATTERY_LEVEL,
+]
+connection.poll(fields) do |bt, bl|
+  puts bt
+  puts bl
+end
+
+#
+# Build your own packets (see BlueTherm::Command) in order to:
+#   * change your BlueTherm's serial number to 31337;
+#   * reset your BlueTherm's carefully calibrated sensor circuit; or
+#   * render your BlueTherm permanently inoperable.
+#
+connection = BlueTherm::Connection.new("/dev/rfcomm0")
+request = BlueTherm::Packet.from_command(BlueTherm::Command::GET)
+request.set_data_flags(
+  BlueTherm::Field::SERIAL_NUMBER,
+  BlueTherm::Field::FIRMWARE_VERSION,
+)
+response = connection.poll_once(req)
+puts response.get(BlueTherm::Field::SERIAL_NUMBER)
+puts response.get(BlueTherm::Field::FIRMWARE_VERSION)
+```
+
 
 # Visualizing Data
 
