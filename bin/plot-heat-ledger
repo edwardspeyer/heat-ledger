@@ -370,6 +370,7 @@ class Game_Color():
     black = (0x00, 0x00, 0x00)
     gray  = (0x80, 0x80, 0x80)
     white = (0xff, 0xff, 0xff)
+    red   = (0xff, 0x00, 0x00)
 
 
 class Game_Sprite_WallClock(pygame.sprite.DirtySprite):
@@ -473,24 +474,34 @@ class Game_Sprite_CountdownBar(pygame.sprite.DirtySprite):
     # For example see the log starting 2015-11-06 17:50
     TIMEOUT = 10000 # ms
 
-    def __init__(self, size):
+    def __init__(self, time_fn, font, left_margin, width):
         pygame.sprite.DirtySprite.__init__(self)
-        self.image = pygame.Surface(size)
+        self.time_fn = time_fn
+        self.font = font
+        self.left_margin = left_margin
+        self.width = width
+
+        self.height = font.render("Ay", 1, Game_Color.gray).get_rect().height
+
+        self.image = pygame.Surface((self.width, self.height))
         self.rect = self.image.get_rect()
         self.reset()
 
     def reset(self):
-        self.image.fill(Game_Color.gray)
-        self.start_ms = pygame.time.get_ticks()
+        self.image.fill(Game_Color.black)
+        y = self.height // 2
+        self.image.fill(Game_Color.gray, (0, y, self.width, 3))
+        self.start = self.time_fn()
         self.last_dur_ms = None
+        self.last_timer_str = None
 
     def update(self):
-        dur_ms = pygame.time.get_ticks() - self.start_ms
+        dur_ms = 1000 * (self.time_fn() - self.start)
         dur_ms = 100 * (dur_ms // 100)
         if dur_ms == self.last_dur_ms:
             return
         self.last_dur_ms = dur_ms
-        if dur_ms <= self.TIMEOUT:
+        if dur_ms < self.TIMEOUT:
             w = self.rect.width
             bar = pygame.Rect(
                 w - (w * dur_ms // self.TIMEOUT),
@@ -499,7 +510,29 @@ class Game_Sprite_CountdownBar(pygame.sprite.DirtySprite):
                 self.rect.height
             )
             self.image.fill(Game_Color.black, bar)
-            self.dirty = 1
+        else:
+            timer_str = self._pretty_duration(dur_ms) + ' since last reading'
+            if timer_str != self.last_timer_str:
+                self.last_timer_str = timer_str
+                self.image.fill(Game_Color.black)
+                text = self.font.render(timer_str, 1, Game_Color.red)
+                self.image.blit(text, (self.left_margin, 0))
+        self.dirty = 1
+
+    def _pretty_duration(self, duration_in_milliseconds):
+        dur_ms = duration_in_milliseconds
+        dd = dur_ms // 86400000
+        hh = (dur_ms // 3600000) % 24
+        mm = (dur_ms // 60000  ) % 60
+        ss = (dur_ms // 1000   ) % 60
+        if dd > 0:
+            return "%dd %2dh" % (dd, hh)
+        elif hh > 0:
+            return "%dh %2dm" % (hh, mm)
+        elif mm > 0:
+            return "%dm %2ds" % (mm, ss)
+        else:
+            return "%ds" % (ss)
 
 
 class Game_Sprite_PlotPane(pygame.sprite.DirtySprite):
@@ -627,20 +660,21 @@ background.fill(Game_Color.black)
 
 # The FreeType parts of pygame have better kerning, but have a bug whereby the
 # baseline has jitter.
-font = pygame.font.SysFont('Eurostile', g_font_size)
+font_lg = pygame.font.SysFont('Eurostile', g_font_size)
+font_sm = pygame.font.SysFont('Eurostile', g_font_size // 2)
 
-wall_clock = Game_Sprite_WallClock(clock.time, font)
+wall_clock = Game_Sprite_WallClock(clock.time, font_lg)
 wall_clock.rect.topleft = (10, 10)
 
-food_temperature = Game_Sprite_TemperatureReading(font, 'food')
+food_temperature = Game_Sprite_TemperatureReading(font_lg, 'food')
 food_temperature.rect.top = 10
 food_temperature.rect.right = g_width - 10
 
-oven_temperature = Game_Sprite_TemperatureReading(font, 'oven')
+oven_temperature = Game_Sprite_TemperatureReading(font_lg, 'oven')
 oven_temperature.rect.top = 10
 oven_temperature.rect.right = food_temperature.rect.left - 50
 
-countdown_bar = Game_Sprite_CountdownBar((g_width, 3))
+countdown_bar = Game_Sprite_CountdownBar(clock.time, font_sm, 20, g_width)
 countdown_bar.rect.topleft = (0, wall_clock.rect.bottom + 10)
 
 plot_pane = Game_Sprite_PlotPane((
