@@ -23,9 +23,10 @@ then
     /opt/heat-ledger/lib/ruby/
 
   cp "$dir/lib/systemd/bluethermd.service" \
-    /etc/systemd/system/bluethermd.service
+    /lib/systemd/system/bluethermd.service
 
   systemctl daemon-reload
+  systemctl enable bluethermd
   systemctl restart bluethermd
   systemctl status bluethermd
 else
