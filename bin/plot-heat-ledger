@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
 import base64
+import glob
 import io
 import optparse
 import os
-import pygame
 import queue
 import random
 import signal
@@ -14,6 +14,12 @@ import sys
 import tempfile
 import threading
 import time
+
+pygame_paths = glob.glob('/opt/pygame/lib/*/site-packages')
+if pygame_paths:
+    sys.path.extend(pygame_paths)
+
+import pygame
 
 
 class Data_Time():
