@@ -1,11 +1,11 @@
 #!/usr/bin/env ruby
 
-repo_lib = File.dirname($0) + '/../lib/ruby/bluetherm.rb'
-if File.exist?(repo_lib)
-  load repo_lib
-else
-  require 'bluetherm'
+repo_lib = File.dirname($0) + '/../lib/ruby'
+if File.directory?(repo_lib)
+  $: << repo_lib
 end
+
+require 'bluetherm'
 
 require 'optparse'
 require 'pathname'
@@ -48,18 +48,25 @@ unless @is_print or @sqlite_path
   opts.abort("choose at least one of print-to-stdout or log-to-sqlite")
 end
 
+def log(message)
+  if @is_print
+    puts "bluethermd: #{message}"
+  end
+end
+
 
 #
 # Helper for writing sensor values to an SQLite3 database.
 #
 class BlueTherm::Database # :nodoc:
-  def initialize(path)
+  def initialize(path, logger=nil)
     @conn = SQLite3::Database.new(path.to_s)
+    @logger = logger
     @last = {}
     @handles = {}
   end
 
-  def log!(sensor_n, temperature)
+  def record!(sensor_n, temperature)
     return if temperature == @last[sensor_n]
     @handles[sensor_n] ||= begin
       table = "sensor_#{sensor_n}"
@@ -78,14 +85,18 @@ class BlueTherm::Database # :nodoc:
       @last[sensor_n] = temperature
     rescue SQLite3::BusyException => ex
       if pass > 3
-        puts "database is too busy; skipping update"
+        log "database is too busy; skipping update: #{ex.message}"
       else
-        puts "database is busy; retrying..."
+        log "database is busy; retrying..."
         pass += 1
         sleep 0.1
         retry
       end
     end
+  end
+
+  def log(message)
+    @logger.call(message) if @logger
   end
 end
 
@@ -93,31 +104,26 @@ if @sqlite_path
   unless @sqlite_path.exist?
     @sqlite_path.dirname.mkpath
   end
-  @db = BlueTherm::Database.new(@sqlite_path)
+  @db = BlueTherm::Database.new(@sqlite_path, method(:log))
 end
 
-options = {
-  :log => @is_print ? STDERR : nil,
-}
-
 begin
-  BlueTherm.poll(@device_path, @poll_interval, options) do |t1, t2|
+  BlueTherm.poll(@device_path, @poll_interval, method(:log)) do |t1, t2|
     if @is_print
-      puts "t1=#{t1} t2=#{t2}"
+      ansi, reset = nil, nil
+      if STDOUT.tty?
+        ansi = "\033[01m"
+        reset = "\033[0m"
+      end
+      puts "#{ansi}t1=#{t1.round(2)} t2=#{t2.round(2)}#{reset}"
     end
 
     if @db
-      @db.log!(1, t1)
-      @db.log!(2, t2)
+      @db.record!(1, t1)
+      @db.record!(2, t2)
     end
   end
 rescue SignalException => ex
   STDERR.puts "received #{ex}"
   exit
-rescue Exception => ex
-  STDERR.puts ex
-  STDERR.puts ex.backtrace
-  STDERR.puts "sleeping before retrying, repeat ^C to quit..."
-  sleep 10
-  retry
 end

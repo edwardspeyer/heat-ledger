@@ -19,8 +19,7 @@ then
   done
 
   mkdir -p /opt/heat-ledger/lib/ruby
-  install --mode 0644 "$dir/lib/ruby/bluetherm.rb" \
-    /opt/heat-ledger/lib/ruby/
+  cp -r "$dir/lib/ruby/"/* /opt/heat-ledger/lib/ruby/
 
   cp "$dir/lib/systemd/bluethermd.service" \
     /lib/systemd/system/bluethermd.service

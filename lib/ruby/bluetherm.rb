@@ -10,10 +10,10 @@ module BlueTherm
   #
   #   BlueTherm.poll("/dev/rfcomm0", 10){ |t1, t2| ... }
   #
-  def self.poll(device_path, interval, options={})
+  def self.poll(device_path, interval, logger=nil)
     begin
       connection =
-        BlueTherm::Connection.new(device_path, interval, options)
+        BlueTherm::Connection.new(device_path, interval, logger)
       fields = [
         BlueTherm::Field::SENSOR_1_TEMPERATURE,
         BlueTherm::Field::SENSOR_2_TEMPERATURE,
@@ -419,30 +419,29 @@ module BlueTherm
   # device in </tt>/dev</tt>.
   #
   class Connection
-    # == Options
-    # * +:log+ an IO that log messages are written to, default is +STDERR+.
-    def initialize(device_path, poll_interval, options={})
+    # SerialPort gem: https://rubygems.org/gems/serialport/versions/1.3.1
+    require 'serialport'
+
+    # * +:logger:+ callback for message logging.
+    def initialize(device_path, poll_interval, logger=nil)
       @device_path = device_path
       @poll_interval = poll_interval
-      @log = if options.key?(:log) then options[:log] else STDERR end
-      @threads = []
-      reopen!
+      @logger = logger
+      @io = nil
+      connect!
+    end
+
+    def connect!
+      @io = SerialPort.new(@device_path)
+      @io.sync = true
+      @io.binmode
     end
 
     def close
-      for thread in @threads
-        log "killing thread #{thread.object_id}"
-        thread.kill
-      end
-      if @io
-        log "closing device #{@device_path}..."
-        begin
-          @io.close
-          log "io closed"
-        rescue IOError => ex
-          log "io error caught: #{ex}"
-        end
-      end
+      log "killing receiver thread"
+      @receiver.kill
+      log "killing sender thread"
+      @sender.kill
     end
 
     #
@@ -492,16 +491,15 @@ module BlueTherm
     def _poll_request(request, is_loop, &block)
       threads = []
 
-      receiver = Thread.new do
+      @receiver = Thread.new do
         buffer = []
         loop do
           begin
             data = @io.read_nonblock(0x80)
             buffer.concat(data.unpack('C*'))
-          rescue IO::WaitReadable
-            #
-          rescue EOFError
-            #
+          rescue IO::WaitReadable, EOFError
+            # no need to reopen, just wait a bit
+            sleep 0.5
           end
 
           is_packet_found = false
@@ -525,28 +523,26 @@ module BlueTherm
         end
       end
 
-      sender = Thread.new do
+      @sender = Thread.new do
         loop do
-          log "sending #{command_name request} request"
           begin
+            log "sending #{command_name request} request"
             @io.write(request.serialize)
+            log "sent!"
             sleep @poll_interval
           rescue Errno::EIO
-            log "EIO, waiting then reopening"
-            sleep 1
-            reopen!
+            log "EIO! reconnecting..."
+            @io.close rescue nil
+            connect!
           end
         end
       end
 
-      @threads << receiver
-      @threads << sender
+      @receiver.abort_on_exception = true
+      @sender.abort_on_exception = true
 
-      receiver.abort_on_exception = true
-      sender.abort_on_exception = true
-
-      receiver.join
-      sender.kill
+      @receiver.join
+      @sender.kill
     end
 
     def command_name(request)
@@ -561,21 +557,7 @@ module BlueTherm
     end
 
     def log(message)
-      if @log
-        @log.puts(message)
-      end
-    end
-
-    def reopen!
-      if @io
-        @io.close
-        log "reopening #{@device_path}"
-      else
-        log "opening #{@device_path}"
-      end
-      @io = File.open(@device_path, 'r+')
-      @io.sync = true
-      @io.binmode
+      @logger.call(message) if @logger
     end
   end
 end

@@ -6,10 +6,10 @@ After=network.target
 Type=simple
 User=root
 Group=root
-ExecStart=/opt/heat-ledger/bin/bluethermd --sqlite /var/lib/heat-ledger/bluethermd.sqlite --quiet
+ExecStart=/opt/heat-ledger/bin/bluethermd --sqlite /var/lib/heat-ledger/bluethermd.sqlite --update-interval 2 --quiet
 KillMode=process
 Restart=always
-TimeoutSec=300
+TimeoutSec=10
 
 [Install]
 WantedBy=multi-user.target
