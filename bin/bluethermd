@@ -71,8 +71,21 @@ class BlueTherm::Database # :nodoc:
       "
       @conn.prepare("INSERT INTO #{table} (epoch, mC) VALUES (?, ?)")
     end
-    @handles[sensor_n].execute(Time.now.to_i, (temperature * 1000).to_i)
-    @last[sensor_n] = temperature
+
+    pass = 1
+    begin
+      @handles[sensor_n].execute(Time.now.to_i, (temperature * 1000).to_i)
+      @last[sensor_n] = temperature
+    rescue SQLite3::BusyException => ex
+      if pass > 3
+        puts "database is too busy; skipping update"
+      else
+        puts "database is busy; retrying..."
+        pass += 1
+        sleep 0.1
+        retry
+      end
+    end
   end
 end
 
