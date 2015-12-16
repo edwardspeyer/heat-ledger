@@ -94,13 +94,14 @@ class Data_Temperatures_SQLite(Data_Temperatures):
         sql = (
             'SELECT epoch, mC/1000.0 FROM sensor_{} '
             'WHERE epoch > {} AND epoch <= {} '
-            'AND mC > -300000 '
-            'ORDER BY epoch ASC'
+            'AND mC > -20000 '
+            'ORDER BY epoch DESC LIMIT 600'
         ).format(sensor, time_from, time_to)
         cur = self.con.cursor()
         cur.execute(sql)
         res = cur.fetchall()
         cur.close()
+        res.reverse()
         return res
 
 
