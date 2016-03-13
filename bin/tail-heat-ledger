@@ -6,6 +6,35 @@ Signal.trap("INT") do
 end
 
 require 'sqlite3'
+require 'optparse'
+
+@count = 0
+@oneline = true
+@tabbed = false
+
+OptionParser.new do |opts|
+  opts.on('-c', '--count [N]', 'Loop N times') do |v|
+    @count = v.to_i
+  end
+
+  opts.on('-a', '--append', 'Print each reading on a new line') do
+    @oneline = false
+  end
+
+  opts.on('-t', '--machine-readable', 'Print machine readable tab separated output') do
+    @tabbed = true
+  end
+
+  opts.separator ""
+  opts.separator "Machine readable output shows the following fields:"
+  opts.separator ""
+  opts.separator "  - Current time"
+  opts.separator "  - T1 temperature in milli-Celsius"
+  opts.separator "  - Time of T1 reading"
+  opts.separator "  - T2 temperature in milli-Celsius"
+  opts.separator "  - Time of T2 reading"
+  opts.separator ""
+end.parse!
 
 @conn = SQLite3::Database.new("/var/lib/heat-ledger/bluethermd.sqlite")
 
@@ -20,6 +49,7 @@ end
 
 STDOUT.sync = true
 
+@counter = 1
 loop do
   now = Time.now
 
@@ -40,16 +70,38 @@ loop do
     else
       '(%3ss ago)' % (now.to_i - epoch_1)
     end
-  
+
   clock = now.strftime('%H:%M:%S')
 
-  print "\r%s: %5.1f\u00B0C %s  %5.1f\u00B0C %s" % [
-    clock,
-    temperature_1,
-    ago_string_1,
-    temperature_2,
-    ago_string_2
-  ]
+  if @tabbed
+    print "%d\t%d\t%d\t%d\t%d\n" % [
+      now,
+      milli_c_1,
+      epoch_1,
+      milli_c_2,
+      epoch_2
+    ]
+  else
+    print "\r%s: %5.1f\u00B0C %s  %5.1f\u00B0C %s" % [
+      clock,
+      temperature_1,
+      ago_string_1,
+      temperature_2,
+      ago_string_2
+    ]
+  end
+
+  unless @oneline
+    print "\n"
+  end
+
+  @counter += 1
+
+  if (@count > 0) and (@counter > @count)
+    break
+  end
 
   sleep 1
 end
+
+print "\n"
