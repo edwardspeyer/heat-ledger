@@ -438,6 +438,8 @@ module BlueTherm
     end
 
     def close
+      log "closing serial connection"
+      @io.close rescue nil
       log "killing receiver thread"
       @receiver.kill
       log "killing sender thread"
@@ -487,7 +489,12 @@ module BlueTherm
     end
 
     private
-
+    
+    #
+    # Start two threads: one to spam the serial connection with requests and
+    # another to read responses and asynchronously send them to the callback
+    # block.
+    #
     def _poll_request(request, is_loop, &block)
       threads = []
 
@@ -497,8 +504,15 @@ module BlueTherm
           begin
             data = @io.read_nonblock(0x80)
             buffer.concat(data.unpack('C*'))
+          rescue IOError, Errno::EIO
+            # IO Errors require a complete restart.  A safer implementation
+            # would avoid munging the state of a Connection object like this,
+            # but this is good enough for now.
+            self.close
+            self.connect!
           rescue IO::WaitReadable, EOFError
-            # no need to reopen, just wait a bit
+            # For these exceptions, we can safely just wait a bit then try
+            # reading again, without having to reopen the serial connection.
             sleep 0.5
           end
 
@@ -523,6 +537,9 @@ module BlueTherm
         end
       end
 
+      #
+      # Dumb send-loop.
+      #
       @sender = Thread.new do
         loop do
           begin
@@ -530,10 +547,9 @@ module BlueTherm
             @io.write(request.serialize)
             log "sent!"
             sleep @poll_interval
-          rescue Errno::EIO
-            log "EIO! reconnecting..."
-            @io.close rescue nil
-            connect!
+          rescue Exception => e
+            log "Exception! #{e.message}"
+            sleep 0.5 # Throttle re-sends
           end
         end
       end
