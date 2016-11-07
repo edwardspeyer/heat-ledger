@@ -29,7 +29,7 @@ STDERR.sync = true
 
 OptionParser.new do |opts|
   opts.on('--device=PATH', 'Bluetooth serial device to connect to') \
-    { |v| @device = v }
+    { |v| @device_path = v }
   opts.on('--update-interval=SECONDS',
     "Log rate, default is #{@poll_interval}") \
     { |v| @poll_interval = v.to_i }
