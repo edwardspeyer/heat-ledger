@@ -432,6 +432,9 @@ module BlueTherm
     end
 
     def connect!
+      log "forcing io closed"
+      @io.close rescue nil
+      log "connecting..."
       @io = SerialPort.new(@device_path)
       @io.sync = true
       @io.binmode
@@ -489,7 +492,7 @@ module BlueTherm
     end
 
     private
-    
+
     #
     # Start two threads: one to spam the serial connection with requests and
     # another to read responses and asynchronously send them to the callback
@@ -504,11 +507,11 @@ module BlueTherm
           begin
             data = @io.read_nonblock(0x80)
             buffer.concat(data.unpack('C*'))
-          rescue IOError, Errno::EIO
+          rescue IOError, Errno::EIO => ex
             # IO Errors require a complete restart.  A safer implementation
             # would avoid munging the state of a Connection object like this,
             # but this is good enough for now.
-            self.close
+            log "IO error caught, reconnecting"
             self.connect!
           rescue IO::WaitReadable, EOFError
             # For these exceptions, we can safely just wait a bit then try
